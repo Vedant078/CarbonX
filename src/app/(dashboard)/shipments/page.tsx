@@ -143,7 +143,7 @@ export default function ShipmentsPage() {
               </span>
 
               <div className="flex flex-wrap items-center gap-2">
-                {(['PREPARING', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED'] as const).map((statusVal) => {
+                {(['PREPARING', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'] as const).map((statusVal) => {
                   const isActive = s.status === statusVal;
                   return (
                     <button

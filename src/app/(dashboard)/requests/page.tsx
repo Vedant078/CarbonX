@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { useAuth } from '@/context/auth-context';
-import { SupplyRequest } from '@/types';
+import { FacilitatedDeal } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -12,7 +12,7 @@ import { Send, CheckCircle2, XCircle, FileCheck, Truck, Clock } from 'lucide-rea
 
 export default function SupplyRequestsPage() {
   const { user, role } = useAuth();
-  const [requests, setRequests] = useState<SupplyRequest[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'ACCEPTED' | 'REJECTED'>('ALL');
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -34,8 +34,8 @@ export default function SupplyRequestsPage() {
 
   const handleAccept = async (requestId: string) => {
     try {
-      const result = await db.updateRequestStatus(requestId, 'ACCEPTED');
-      setActionMessage(`✓ Supply Request accepted! Deal #${result.deal?.id} & Shipment initialized.`);
+      await db.acceptProposal(requestId, user?.id || "");
+      setActionMessage(`✓ Proposal accepted! Deal confirmed & Shipment initialized.`);
       await loadRequests();
     } catch (err) {
       console.error('Error accepting request', err);

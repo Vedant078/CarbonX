@@ -41,7 +41,7 @@ export default function SettingsPage() {
             <input
               type="text"
               readOnly
-              value={user.name}
+              value={user?.name || ''}
               className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
             />
           </div>
@@ -51,7 +51,7 @@ export default function SettingsPage() {
             <input
               type="text"
               readOnly
-              value={user.company}
+              value={user?.company || ''}
               className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
             />
           </div>
@@ -61,7 +61,7 @@ export default function SettingsPage() {
             <input
               type="email"
               readOnly
-              value={user.email}
+              value={user?.email || ''}
               className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800"
             />
           </div>
@@ -71,7 +71,7 @@ export default function SettingsPage() {
             <input
               type="text"
               readOnly
-              value={user.role}
+              value={user?.role || ''}
               className="w-full h-10 px-3 bg-blue-50 border border-blue-200 rounded-xl font-bold text-blue-800 uppercase"
             />
           </div>

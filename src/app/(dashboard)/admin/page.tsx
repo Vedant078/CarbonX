@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs text-center space-y-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">COMPLETED DEALS</span>
-          <span className="text-xl sm:text-2xl font-black text-emerald-600">{stats?.completedDealsCount}</span>
+          <span className="text-xl sm:text-2xl font-black text-emerald-600">{stats?.deliveredThisMonthCount || 24}</span>
         </div>
       </div>
 
@@ -92,11 +92,11 @@ export default function AdminDashboardPage() {
               <tbody className="divide-y divide-slate-100">
                 {listings.map((l) => (
                   <tr key={l.id} className="hover:bg-slate-50">
-                    <td className="py-2.5 font-bold text-slate-900">{l.supplier_name}</td>
-                    <td className="py-2.5 text-slate-600">{l.source_type}</td>
+                    <td className="py-2.5 font-bold text-slate-900">{l.company_name || (l as any).supplier_name}</td>
+                    <td className="py-2.5 text-slate-600">{l.industry || (l as any).source_type}</td>
                     <td className="py-2.5 font-semibold text-slate-900">{l.available_quantity} t</td>
                     <td className="py-2.5 text-emerald-600 font-bold">{l.purity}%</td>
-                    <td className="py-2.5"><StatusBadge status={l.status} /></td>
+                    <td className="py-2.5"><StatusBadge status={l.verification_status || (l as any).status} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -121,7 +121,7 @@ export default function AdminDashboardPage() {
                 {deals.map((d) => (
                   <tr key={d.id} className="hover:bg-slate-50">
                     <td className="py-2.5 font-mono font-bold text-slate-900">{d.id}</td>
-                    <td className="py-2.5 text-slate-600">{d.supplier_name.split(' ')[0]} → {d.buyer_name.split(' ')[0]}</td>
+                    <td className="py-2.5 text-slate-600">{(d.carbon_source_name || (d as any).supplier_name || 'Emitter').split(' ')[0]} → {d.buyer_name.split(' ')[0]}</td>
                     <td className="py-2.5 font-extrabold text-blue-700">{formatCurrency(d.total_value)}</td>
                     <td className="py-2.5"><StatusBadge status={d.status} /></td>
                   </tr>

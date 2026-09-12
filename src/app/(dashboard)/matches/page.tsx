@@ -96,10 +96,10 @@ export default function MatchesPage() {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CO₂ SUPPLY</span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800">
-                  {listing?.source_type || 'Steel'}
+                  {listing?.industry || (listing as any)?.source_type || 'Steel'}
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-white">{listing?.supplier_name || 'Mumbai Steel Works'}</h3>
+              <h3 className="text-lg font-bold text-white">{listing?.company_name || (listing as any)?.supplier_name || 'Mumbai Steel Works'}</h3>
               <p className="text-xs text-slate-400 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" /> {listing?.location || 'Mumbai, MH'}
               </p>
@@ -248,7 +248,7 @@ export default function MatchesPage() {
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-slate-900">{m.listing?.supplier_name || 'Mumbai Steel Works'}</h4>
+                    <h4 className="text-sm font-bold text-slate-900">{m.listing?.company_name || (m.listing as any)?.supplier_name || 'Mumbai Steel Works'}</h4>
                     <span className="text-xs text-slate-400">→</span>
                     <span className="text-xs font-semibold text-slate-700">{m.requirement?.buyer_name || 'GreenFuel Tech'}</span>
                   </div>

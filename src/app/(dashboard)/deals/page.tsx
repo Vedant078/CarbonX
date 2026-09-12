@@ -57,8 +57,8 @@ export default function DealsPage() {
               <div className="flex items-center gap-2">
                 <Factory className="w-4 h-4 text-blue-600 shrink-0" />
                 <div>
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">SUPPLIER</span>
-                  <span className="font-bold text-slate-900">{deal.supplier_name}</span>
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase font-mono">SUPPLIER</span>
+                  <span className="font-bold text-slate-900">{deal.carbon_source_name || (deal as any).supplier_name || "Industrial Emitter"}</span>
                 </div>
               </div>
 

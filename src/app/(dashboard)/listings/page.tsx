@@ -57,13 +57,13 @@ export default function MyListingsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {item.source_type}
+                  {item.industry || (item as any).source_type}
                 </span>
-                <StatusBadge status={item.status} />
+                <StatusBadge status={item.verification_status || (item as any).status} />
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-slate-900">{item.supplier_name}</h3>
+                <h3 className="text-lg font-bold text-slate-900">{item.company_name || (item as any).supplier_name}</h3>
                 <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                   <MapPin className="w-3.5 h-3.5 text-slate-400" /> {item.location}
                 </p>

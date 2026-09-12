@@ -3,36 +3,27 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
-import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Search,
-  ListPlus,
+  FileText,
   Sparkles,
-  Send,
-  FileCheck,
+  ShoppingBag,
+  Briefcase,
   Truck,
-  ChartNoAxesCombined,
+  TrendingUp,
   Settings,
-  Shield,
-  Building,
-  LogOut,
-  Atom,
+  Layers,
+  DollarSign,
+  MapPin,
+  CheckCircle2,
+  Package,
+  Navigation,
+  Users,
+  ShieldCheck,
 } from 'lucide-react';
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  hideForRole?: string;
-  roleOnly?: string;
-}
-
-interface NavSection {
-  title: string;
-  items: NavItem[];
-}
+import { useAuth } from '@/context/auth-context';
+import { UserRole } from '@/types';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -42,144 +33,207 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const { user, role } = useAuth();
 
-  const navSections: NavSection[] = [
+  const isBuyer = role === 'BUYER';
+  const isDealer = role === 'DEALER';
+  const isLogistics = role === 'LOGISTICS_PROVIDER';
+
+  const buyerNav = [
+    { label: 'Dashboard', href: '/buyer/dashboard', icon: LayoutDashboard },
     {
-      title: 'OVERVIEW',
+      group: 'DISCOVER',
       items: [
-        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Marketplace', href: '/buyer/marketplace', icon: Search },
+        { label: 'My Requirements', href: '/buyer/requirements', icon: FileText },
       ],
     },
     {
-      title: 'MARKETPLACE',
+      group: 'PURCHASES',
       items: [
-        { label: 'Discover CO₂', href: '/marketplace', icon: Search },
-        { label: 'My Listings', href: '/listings', icon: ListPlus, hideForRole: 'BUYER' },
-        { label: 'Matches', href: '/matches', icon: Sparkles },
+        { label: 'Supply Requests', href: '/buyer/requests', icon: ClockIcon },
+        { label: 'Dealer Proposals', href: '/buyer/proposals', icon: ShieldCheck },
+        { label: 'My Deals', href: '/buyer/deals', icon: CheckCircle2 },
       ],
     },
     {
-      title: 'TRANSACTIONS',
+      group: 'LOGISTICS',
       items: [
-        { label: 'Requests', href: '/requests', icon: Send },
-        { label: 'Deals', href: '/deals', icon: FileCheck },
+        { label: 'My Shipments', href: '/buyer/shipments', icon: Truck },
       ],
     },
-    {
-      title: 'LOGISTICS',
-      items: [
-        { label: 'Active Shipments', href: '/shipments', icon: Truck },
-      ],
-    },
-    {
-      title: 'INSIGHTS',
-      items: [
-        { label: 'Analytics', href: '/analytics', icon: ChartNoAxesCombined },
-      ],
-    },
-    {
-      title: 'SYSTEM',
-      items: [
-        { label: 'Settings', href: '/settings', icon: Settings },
-        { label: 'Admin View', href: '/admin', icon: Shield, roleOnly: 'ADMIN' },
-      ],
-    },
+    { label: 'Analytics', href: '/analytics', icon: TrendingUp },
+    { label: 'Settings', href: '/settings', icon: Settings },
   ];
 
+  const dealerNav = [
+    { label: 'Dashboard', href: '/dealer/dashboard', icon: LayoutDashboard },
+    {
+      group: 'MARKETPLACE',
+      items: [
+        { label: 'Supply Entities', href: '/dealer/supply', icon: Search },
+        { label: 'Buyer Demand', href: '/dealer/demand', icon: FileText },
+        { label: 'Opportunities', href: '/dealer/opportunities', icon: Sparkles },
+        { label: 'Match Analytics', href: '/dealer/matches', icon: Layers },
+      ],
+    },
+    {
+      group: 'TRANSACTIONS',
+      items: [
+        { label: 'Proposals', href: '/dealer/proposals', icon: ShieldCheck },
+        { label: 'Deal Pipeline', href: '/dealer/deals', icon: CheckCircle2 },
+      ],
+    },
+    {
+      group: 'FINANCE',
+      items: [
+        { label: 'Commissions', href: '/dealer/commissions', icon: DollarSign },
+      ],
+    },
+    { label: 'Analytics', href: '/analytics', icon: TrendingUp },
+    { label: 'Settings', href: '/settings', icon: Settings },
+  ];
+
+  const logisticsNav = [
+    { label: 'Dashboard', href: '/logistics/dashboard', icon: LayoutDashboard },
+    {
+      group: 'OPERATIONS',
+      items: [
+        { label: 'Available Jobs', href: '/logistics/available', icon: Package },
+        { label: 'Active Shipments', href: '/logistics/shipments', icon: Truck },
+      ],
+    },
+    {
+      group: 'FLEET & CREW',
+      items: [
+        { label: 'Vehicles', href: '/logistics/vehicles', icon: Truck },
+        { label: 'Drivers', href: '/logistics/drivers', icon: Users },
+      ],
+    },
+    {
+      group: 'ROUTES',
+      items: [
+        { label: 'Route Activity', href: '/logistics/routes', icon: Navigation },
+      ],
+    },
+    { label: 'Analytics', href: '/analytics', icon: TrendingUp },
+    { label: 'Settings', href: '/settings', icon: Settings },
+  ];
+
+  const activeNav = isBuyer ? buyerNav : isDealer ? dealerNav : logisticsNav;
+
+  const getPrimaryCta = () => {
+    if (isBuyer) {
+      return { label: 'Find CO₂ Supply', href: '/buyer/marketplace', icon: Search, color: 'bg-emerald-600 hover:bg-emerald-500' };
+    }
+    if (isDealer) {
+      return { label: 'Find Opportunities', href: '/dealer/opportunities', icon: Sparkles, color: 'bg-indigo-600 hover:bg-indigo-500' };
+    }
+    return { label: 'View Available Shipments', href: '/logistics/available', icon: Package, color: 'bg-cyan-600 hover:bg-cyan-500' };
+  };
+
+  const primaryCta = getPrimaryCta();
+
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-full shrink-0 select-none">
-      {/* Brand Header */}
-      <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-[#0B1220] flex items-center justify-center text-white shadow-md group-hover:bg-blue-600 transition-colors">
-            <Atom className="w-5 h-5 text-blue-400 group-hover:text-white transition-colors" />
-          </div>
-          <div>
-            <span className="text-xl font-black tracking-tight text-[#0B1220] group-hover:text-blue-600 transition-colors">
-              Carbon<span className="text-blue-600">X</span>
-            </span>
-            <span className="block text-[10px] font-bold text-slate-400 tracking-widest uppercase -mt-1">
-              Marketplace
-            </span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Navigation Links */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
-        {navSections.map((section, idx) => {
-          const visibleItems = section.items.filter((item) => {
-            if (item.hideForRole && role === item.hideForRole) return false;
-            if (item.roleOnly && role !== item.roleOnly) return false;
-            return true;
-          });
-
-          if (visibleItems.length === 0) return null;
-
-          return (
-            <div key={idx} className="space-y-1">
-              <h4 className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                {section.title}
-              </h4>
-              <div className="space-y-0.5 mt-1.5">
-                {visibleItems.map((item) => {
-                  const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-                  const Icon = item.icon;
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onCloseMobile}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
-                        isActive
-                          ? 'bg-blue-50 text-blue-700 font-semibold shadow-2xs'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          'w-4 h-4 transition-colors',
-                          isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-700'
-                        )}
-                      />
-                      <span>{item.label}</span>
-                      {item.label === 'Matches' && (
-                        <span className="ml-auto bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                          24
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
+    <aside className="w-64 bg-card border-r border-border/80 flex flex-col justify-between h-screen sticky top-0 font-sans z-40 select-none">
+      <div className="p-4 space-y-6">
+        {/* Brand */}
+        <div className="flex items-center justify-between px-2 pt-2">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center font-mono font-bold text-slate-950 text-sm shadow-md">
+              CX
             </div>
-          );
-        })}
+            <div className="flex flex-col">
+              <span className="font-mono font-bold tracking-wider text-base text-foreground">CARBONX</span>
+              <span className="text-[10px] font-mono text-emerald-400 font-semibold tracking-widest uppercase">
+                {role ? role.replace('_', ' ') : 'BUYER'}
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Primary CTA Button */}
+        <div className="px-1">
+          <Link href={primaryCta.href} onClick={onCloseMobile}>
+            <button className={`w-full py-2.5 px-3 rounded-xl font-mono text-xs font-bold text-white transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 ${primaryCta.color}`}>
+              <primaryCta.icon className="w-3.5 h-3.5" />
+              <span>{primaryCta.label}</span>
+            </button>
+          </Link>
+        </div>
+
+        {/* Navigation Section */}
+        <nav className="space-y-4 px-1 overflow-y-auto max-h-[calc(100vh-250px)]">
+          {activeNav.map((item: any, idx) => {
+            if (item.group) {
+              return (
+                <div key={idx} className="space-y-1 pt-2">
+                  <span className="text-[10px] font-mono font-bold tracking-widest text-muted-foreground uppercase px-2 block">
+                    {item.group}
+                  </span>
+                  {item.items.map((sub: any) => {
+                    const active = pathname === sub.href;
+                    const Icon = sub.icon;
+                    return (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        onClick={onCloseMobile}
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all ${
+                          active
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{sub.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            const active = pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onCloseMobile}
+                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all ${
+                  active
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* User Footer Profile Card */}
-      <div className="p-3 border-t border-slate-100 bg-slate-50/60">
-        <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#0B1220] text-white flex items-center justify-center font-bold text-xs">
-            {user.company.charAt(0)}
+      {/* User Footer Profile */}
+      <div className="p-4 border-t border-border/60 bg-muted/10 font-mono">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center font-bold text-emerald-400 text-xs">
+            {user?.name ? user.name[0] : 'U'}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-900 truncate">{user.company}</p>
-            <p className="text-[11px] text-slate-500 truncate flex items-center gap-1">
-              <Building className="w-3 h-3 text-slate-400 shrink-0" />
-              <span>{user.role}</span>
-            </p>
+          <div className="overflow-hidden">
+            <div className="text-xs font-bold text-foreground truncate">{user?.name || 'User'}</div>
+            <div className="text-[10px] text-muted-foreground truncate">{user?.company || user?.email || ''}</div>
           </div>
-          <Link
-            href="/"
-            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-            title="Return to Public Landing Page"
-          >
-            <LogOut className="w-4 h-4" />
-          </Link>
         </div>
       </div>
     </aside>
+  );
+}
+
+function ClockIcon(props: any) {
+  return (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
   );
 }

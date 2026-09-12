@@ -28,8 +28,8 @@ export default function CreateRequirementPage() {
     setSubmitting(true);
     try {
       await db.createRequirement({
-        buyer_id: user.id,
-        buyer_name: user.company || 'GreenFuel Technologies',
+        buyer_id: user?.id || "demo-buyer",
+        buyer_name: user?.company || 'GreenFuel Technologies',
         title,
         application,
         required_quantity: requiredQuantity,

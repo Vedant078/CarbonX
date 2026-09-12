@@ -89,20 +89,15 @@ export default function ListingDetailPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await db.createSupplyRequest({
-        listing_id: listing.id,
-        buyer_id: user.id,
-        buyer_name: user.company || 'GreenFuel Technologies',
-        supplier_id: listing.supplier_id,
-        supplier_name: listing.supplier_name,
+      await db.createBuyerRequest({
+        buyer_id: user?.id || "demo-buyer",
+        buyer_name: user?.company || 'GreenFuel Technologies',
+        carbon_source_id: listing.id,
         quantity: requestedQty,
-        start_date: startDate,
-        duration_months: durationMonths,
-        message,
       });
 
       setModalOpen(false);
-      router.push('/requests');
+      router.push('/dashboard/buyer');
     } catch (err) {
       console.error('Error submitting request', err);
     } finally {
@@ -123,16 +118,16 @@ export default function ListingDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
-                {listing.source_type} PROCESS
+                {listing.industry || (listing as any).source_type} PROCESS
               </span>
-              <StatusBadge status={listing.status} />
+              <StatusBadge status={listing.verification_status || (listing as any).status} />
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {listing.title}
+              {listing.facility_name || (listing as any).title}
             </h1>
             <p className="text-sm font-bold text-slate-700 mt-1 flex items-center gap-1.5">
-              <Factory className="w-4 h-4 text-blue-600" /> {listing.supplier_name} •{' '}
+              <Factory className="w-4 h-4 text-blue-600" /> {listing.company_name || (listing as any).supplier_name} •{' '}
               <span className="font-normal text-slate-500 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" /> {listing.location}
               </span>
@@ -179,7 +174,7 @@ export default function ListingDetailPage() {
           <div className="space-y-3 text-xs">
             <div className="flex justify-between py-2 border-b border-slate-100">
               <span className="text-slate-500 font-medium">Source Process</span>
-              <span className="font-bold text-slate-900">{listing.source_type} Manufacturing</span>
+              <span className="font-bold text-slate-900">{listing.industry || (listing as any).source_type} Manufacturing</span>
             </div>
 
             <div className="flex justify-between py-2 border-b border-slate-100">
@@ -257,14 +252,14 @@ export default function ListingDetailPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Request CO₂ Supply"
-        subtitle={`Submit supply agreement request to ${listing.supplier_name}`}
+        subtitle={`Submit supply agreement request to ${listing.company_name || (listing as any).supplier_name}`}
         maxWidth="lg"
       >
         <form onSubmit={handleRequestSubmit} className="space-y-5">
           <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
             <div>
               <span className="text-slate-500 font-medium">Selected Supplier:</span>
-              <p className="font-bold text-slate-900">{listing.supplier_name}</p>
+              <p className="font-bold text-slate-900">{listing.company_name || (listing as any).supplier_name}</p>
             </div>
             <MatchScoreBadge score={94} size="sm" />
           </div>

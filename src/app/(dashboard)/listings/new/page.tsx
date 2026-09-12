@@ -29,7 +29,7 @@ export default function CreateListingPage() {
   // Form Fields
   const [sourceType, setSourceType] = useState<SourceType>('Steel');
   const [title, setTitle] = useState('Flue Gas CO₂ Recovery Unit');
-  const [facilityName, setFacilityName] = useState(user.company || 'Mumbai Steel Works');
+  const [facilityName, setFacilityName] = useState(user?.company || 'Mumbai Steel Works');
   const [captureMethod, setCaptureMethod] = useState('Amine-Based Solvent Absorption');
 
   const [quantity, setQuantity] = useState<number>(500);
@@ -50,7 +50,7 @@ export default function CreateListingPage() {
     setSubmitting(true);
     try {
       await db.createListing({
-        supplier_id: user.id,
+        supplier_id: user?.id || 'demo-supplier',
         supplier_name: facilityName,
         title,
         source_type: sourceType,

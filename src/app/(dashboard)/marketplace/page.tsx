@@ -65,14 +65,18 @@ function MarketplaceContent() {
 
   const filteredListings = useMemo(() => {
     return listings.filter((item) => {
+      const facilityName = item.facility_name || (item as any).title || '';
+      const companyName = item.company_name || (item as any).supplier_name || '';
+      const industryType = item.industry || (item as any).source_type || '';
+
       const matchSearch =
         !search ||
-        item.title.toLowerCase().includes(search.toLowerCase()) ||
-        item.supplier_name.toLowerCase().includes(search.toLowerCase()) ||
+        facilityName.toLowerCase().includes(search.toLowerCase()) ||
+        companyName.toLowerCase().includes(search.toLowerCase()) ||
         item.location.toLowerCase().includes(search.toLowerCase()) ||
-        item.source_type.toLowerCase().includes(search.toLowerCase());
+        industryType.toLowerCase().includes(search.toLowerCase());
 
-      const matchSource = selectedSource === 'ALL' || item.source_type === selectedSource;
+      const matchSource = selectedSource === 'ALL' || industryType === selectedSource;
       const matchPurity = item.purity >= minPurity;
       const matchPrice = item.price_per_tonne <= maxPrice;
 
@@ -247,11 +251,11 @@ function MarketplaceContent() {
                       <MapPin className="w-4 h-4" />
                     </div>
                     <span className="mt-1 px-2 py-0.5 bg-slate-900 border border-slate-700 text-slate-200 text-[10px] font-bold rounded-md shadow-md whitespace-nowrap">
-                      {item.supplier_name} ({item.available_quantity}t)
+                      {item.company_name || (item as any).supplier_name} ({item.available_quantity}t)
                     </span>
 
                     <div className="hidden group-hover:block absolute bottom-full mb-2 w-48 p-3 bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl z-30 text-xs space-y-1">
-                      <p className="font-bold text-blue-400">{item.supplier_name}</p>
+                      <p className="font-bold text-blue-400">{item.company_name || (item as any).supplier_name}</p>
                       <p>{item.location}</p>
                       <p className="text-emerald-400 font-semibold">{item.purity}% Purity • ₹{item.price_per_tonne}/t</p>
                       <Link href={`/marketplace/${item.id}`} className="block pt-1 text-blue-400 underline font-bold">
@@ -291,14 +295,14 @@ function MarketplaceContent() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      {item.source_type}
+                      {item.industry || (item as any).source_type}
                     </span>
-                    <StatusBadge status={item.status} />
+                    <StatusBadge status={item.verification_status || (item as any).status} />
                   </div>
 
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                      {item.supplier_name}
+                      {item.company_name || (item as any).supplier_name}
                     </h3>
                     <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />

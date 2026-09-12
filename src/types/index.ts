@@ -1,4 +1,24 @@
-export type UserRole = 'SUPPLIER' | 'BUYER' | 'ADMIN';
+export type UserRole = 'BUYER' | 'DEALER' | 'LOGISTICS_PROVIDER';
+
+export interface BuyerProfileData {
+  primaryApplication: string;
+  monthlyRequirement: number;
+  requiredPurity: number;
+  preferredLocation: string;
+}
+
+export interface DealerProfileData {
+  organizationType: string;
+  operatingRegion: string;
+  expectedMonthlyVolume: number;
+}
+
+export interface LogisticsProfileData {
+  transportType: string;
+  fleetSize: number;
+  serviceRegion: string;
+  co2TransportCapability: boolean;
+}
 
 export interface UserProfile {
   id: string;
@@ -7,21 +27,24 @@ export interface UserProfile {
   company: string;
   role: UserRole;
   location: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   avatarUrl?: string;
+  buyerProfile?: BuyerProfileData;
+  dealerProfile?: DealerProfileData;
+  logisticsProfile?: LogisticsProfileData;
   createdAt: string;
 }
 
+// Marketplace Supply Entity (NOT an authenticated user)
 export type SourceType = 'Cement' | 'Steel' | 'Power' | 'Chemical' | 'Other';
-export type ListingStatus = 'ACTIVE' | 'DRAFT' | 'PAUSED' | 'FULLY_BOOKED';
+export type VerificationStatus = 'VERIFIED' | 'PENDING_AUDIT' | 'CERTIFIED';
 
-export interface CarbonListing {
+export interface CarbonSource {
   id: string;
-  supplier_id: string;
-  supplier_name: string;
-  title: string;
-  source_type: SourceType;
+  company_name: string;
+  facility_name: string;
+  industry: SourceType;
   location: string;
   latitude: number;
   longitude: number;
@@ -31,12 +54,15 @@ export interface CarbonListing {
   capture_method: string;
   temperature?: string;
   pressure?: string;
-  availability_date: string;
   price_per_tonne: number; // in INR ₹
-  status: ListingStatus;
+  availability_date: string;
+  verification_status: VerificationStatus;
   created_at: string;
   updated_at: string;
 }
+
+// Alias for backward compatibility if components reference CarbonListing
+export type CarbonListing = CarbonSource;
 
 export type ApplicationType =
   | 'Synthetic Fuel'
@@ -78,86 +104,85 @@ export interface MatchScoreBreakdown {
 
 export interface MatchRecord extends MatchScoreBreakdown {
   id: string;
-  listing_id: string;
+  carbon_source_id: string;
   requirement_id: string;
   created_at: string;
-  listing?: CarbonListing;
+  source?: CarbonSource;
   requirement?: BuyerRequirement;
+  listing?: CarbonSource;
 }
 
-export type RequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+export type ProposalStatus =
+  | 'IDENTIFIED'
+  | 'MATCHED'
+  | 'PROPOSED'
+  | 'NEGOTIATING'
+  | 'CONFIRMED'
+  | 'COMPLETED'
+  | 'REJECTED';
 
-export interface SupplyRequest {
+export interface FacilitatedDeal {
   id: string;
-  match_id?: string;
-  listing_id: string;
-  requirement_id?: string;
+  dealer_id?: string;
+  dealer_name?: string;
   buyer_id: string;
   buyer_name: string;
-  supplier_id: string;
-  supplier_name: string;
-  quantity: number; // tonnes/month
-  start_date: string;
-  duration_months: number;
-  message?: string;
-  calculated_carbon_value: number;
-  calculated_logistics_cost: number;
-  calculated_total_value: number;
-  status: RequestStatus;
-  created_at: string;
-  listing?: CarbonListing;
-}
-
-export type DealStatus =
-  | 'REQUESTED'
-  | 'ACCEPTED'
-  | 'PREPARING'
-  | 'IN_TRANSIT'
-  | 'DELIVERED'
-  | 'COMPLETED';
-
-export interface Deal {
-  id: string;
-  request_id: string;
-  listing_id: string;
+  carbon_source_id: string;
+  carbon_source_name: string;
   requirement_id?: string;
-  buyer_id: string;
-  buyer_name: string;
-  supplier_id: string;
-  supplier_name: string;
   quantity: number;
   price_per_tonne: number;
   total_carbon_value: number;
   logistics_cost: number;
   total_value: number;
-  status: DealStatus;
+  match_score: number;
+  commission: number; // in INR ₹ (e.g. 5% of deal value)
+  status: ProposalStatus;
   created_at: string;
   updated_at: string;
-  listing?: CarbonListing;
+  source?: CarbonSource;
+  requirement?: BuyerRequirement;
 }
 
-export type ShipmentStatus = 'PREPARING' | 'IN_TRANSIT' | 'DELIVERED' | 'COMPLETED';
+// Alias for backward compatibility
+export type Deal = FacilitatedDeal;
+
+export type ShipmentStatus =
+  | 'AWAITING_LOGISTICS'
+  | 'PREPARING'
+  | 'PICKED_UP'
+  | 'IN_TRANSIT'
+  | 'DELIVERED';
 
 export interface LogisticsShipment {
   id: string;
   deal_id: string;
+  logistics_provider_id?: string;
+  logistics_provider_name?: string;
   origin: string;
   destination: string;
   distance_km: number;
+  quantity: number;
   transport_mode: string;
+  vehicle_type: string;
+  driver_name: string;
   estimated_cost: number;
   cost_per_tonne: number;
   estimated_delivery_days: number;
+  pickup_date?: string;
+  estimated_delivery?: string;
   status: ShipmentStatus;
   tracking_code: string;
+  tracking_notes: string[];
   created_at: string;
   updated_at: string;
-  deal?: Deal;
+  deal?: FacilitatedDeal;
 }
 
 export interface AppNotification {
   id: string;
   user_id: string;
+  role_target?: UserRole | 'ALL';
   title: string;
   message: string;
   link?: string;
@@ -165,14 +190,30 @@ export interface AppNotification {
   created_at: string;
 }
 
+export interface AuditLog {
+  id: string;
+  user_id: string;
+  user_name: string;
+  role: UserRole;
+  action: string;
+  resource: string;
+  details?: string;
+  timestamp: string;
+}
+
 export interface AnalyticsSummary {
   co2AvailableTotal: number;
+  co2RequiredTotal: number;
   co2UtilizedTotal: number;
   activeSuppliersCount: number;
   activeBuyersCount: number;
   activeMatchesCount: number;
-  completedDealsCount: number;
-  potentialCarbonValue: number;
-  averageLogisticsCostPerTonne: number;
-  averageMatchScore: number;
+  activeNegotiationsCount: number;
+  facilitatedDealValueTotal: number;
+  potentialCommissionTotal: number;
+  availableShipmentsCount: number;
+  activeShipmentsCount: number;
+  inTransitShipmentsCount: number;
+  deliveredThisMonthCount: number;
+  totalLogisticsValue: number;
 }
