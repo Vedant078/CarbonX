@@ -54,6 +54,11 @@ export async function initializeDatabase() {
         ]
       );
       console.log(`Seeded user: ${user.email} (${user.role})`);
+    } else {
+      await query(
+        `UPDATE profiles SET name = $1, company = $2, role = $3 WHERE user_id = $4`,
+        [user.name, user.company, user.role, user.id]
+      );
     }
   }
 
