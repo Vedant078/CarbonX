@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Briefcase, Truck } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
 export default function LoginPage() {
@@ -21,15 +20,6 @@ export default function LoginPage() {
       await login(email, password, false);
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
-    }
-  };
-
-  const handleDemoLogin = async (demoEmail: string) => {
-    setError("");
-    try {
-      await login(demoEmail, undefined, true);
-    } catch (err: any) {
-      setError(err.message || "Failed to log in as demo account");
     }
   };
 
@@ -65,7 +55,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => loginWithGoogle()}
             disabled={isLoading}
-            className="w-full py-3 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-mono text-sm font-semibold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+            className="w-full py-3 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-mono text-sm font-semibold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:opacity-50"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -93,65 +83,14 @@ export default function LoginPage() {
         </div>
 
         {/* Divider */}
-        <div className="relative flex items-center justify-center border-t border-slate-200 pt-4">
-          <span className="bg-white px-3 text-[10px] font-mono text-slate-500 font-bold uppercase tracking-widest absolute">
-            EXPLORE DEMO WORKSPACE
+        <div className="relative flex items-center justify-center border-t border-slate-200">
+          <span className="bg-white px-3 text-[10px] font-mono text-slate-400 font-semibold uppercase tracking-wider -mt-2.5">
+            OR
           </span>
         </div>
 
-        {/* 3 DEMO ACCOUNTS */}
-        <div className="space-y-2.5 pt-2 font-mono">
-          {/* BUYER DEMO */}
-          <button
-            type="button"
-            onClick={() => handleDemoLogin("buyer.demo@carbonx.demo")}
-            className="w-full py-2.5 px-4 rounded-xl border border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100/80 text-emerald-950 text-xs font-bold flex items-center justify-between transition-all group active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
-          >
-            <div className="flex items-center gap-2.5">
-              <ShoppingBag className="w-4 h-4 text-emerald-800" />
-              <span className="text-emerald-950 font-bold">Buyer Demo</span>
-            </div>
-            <span className="text-[10px] text-emerald-900 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-              <span>buyer.demo@carbonx.demo</span>
-              <span className="text-emerald-800 font-bold">→</span>
-            </span>
-          </button>
-
-          {/* DEALER DEMO */}
-          <button
-            type="button"
-            onClick={() => handleDemoLogin("dealer.demo@carbonx.demo")}
-            className="w-full py-2.5 px-4 rounded-xl border border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100/80 text-indigo-950 text-xs font-bold flex items-center justify-between transition-all group active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
-          >
-            <div className="flex items-center gap-2.5">
-              <Briefcase className="w-4 h-4 text-indigo-800" />
-              <span className="text-indigo-950 font-bold">Dealer Demo</span>
-            </div>
-            <span className="text-[10px] text-indigo-900 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-              <span>dealer.demo@carbonx.demo</span>
-              <span className="text-indigo-800 font-bold">→</span>
-            </span>
-          </button>
-
-          {/* LOGISTICS DEMO */}
-          <button
-            type="button"
-            onClick={() => handleDemoLogin("logistics.demo@carbonx.demo")}
-            className="w-full py-2.5 px-4 rounded-xl border border-cyan-200 bg-cyan-50/80 hover:bg-cyan-100/80 text-cyan-950 text-xs font-bold flex items-center justify-between transition-all group active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:ring-offset-2"
-          >
-            <div className="flex items-center gap-2.5">
-              <Truck className="w-4 h-4 text-cyan-800" />
-              <span className="text-cyan-950 font-bold">Logistics Demo</span>
-            </div>
-            <span className="text-[10px] text-cyan-900 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-              <span>logistics.demo@carbonx.demo</span>
-              <span className="text-cyan-800 font-bold">→</span>
-            </span>
-          </button>
-        </div>
-
-        {/* Email Login Form Fallback */}
-        <form onSubmit={handleSubmit} className="space-y-3 pt-2 border-t border-slate-200 font-mono text-xs">
+        {/* Email & Password Login Form */}
+        <form onSubmit={handleSubmit} className="space-y-4 font-mono text-xs">
           <div>
             <label className="block text-slate-800 font-bold mb-1">Work Email</label>
             <input
@@ -167,6 +106,7 @@ export default function LoginPage() {
             <label className="block text-slate-800 font-bold mb-1">Password</label>
             <input
               type="password"
+              required
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -176,7 +116,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
+            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-50"
           >
             {isLoading ? "Signing In..." : "Sign In with Email →"}
           </button>
