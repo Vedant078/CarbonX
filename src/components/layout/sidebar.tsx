@@ -173,7 +173,7 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
                     const Icon = sub.icon;
                     return (
                       <Link
-                        key={sub.href}
+                        key={`${sub.label}-${sub.href}`}
                         href={sub.href}
                         onClick={onCloseMobile}
                         className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all ${
