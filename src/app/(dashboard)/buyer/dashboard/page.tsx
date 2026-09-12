@@ -40,6 +40,7 @@ export default function BuyerDashboardPage() {
   const [shipments, setShipments] = useState<LogisticsShipment[]>([]);
   const [requirements, setRequirements] = useState<BuyerRequirement[]>([]);
   const [bids, setBids] = useState<Bid[]>([]);
+  const [liveAuctions, setLiveAuctions] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadBuyerData() {
@@ -59,10 +60,17 @@ export default function BuyerDashboardPage() {
         setRequirements(reqsData.filter((r: any) => r.buyer_id === user?.id || true));
 
         // Fetch my bids
-        const res = await fetch("/api/bidding/my-bids");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.bids) setBids(data.bids);
+        const resBids = await fetch("/api/bidding/my-bids");
+        if (resBids.ok) {
+          const dataBids = await resBids.json();
+          if (dataBids.bids) setBids(dataBids.bids);
+        }
+
+        // Fetch live bidding opportunities for Live CO2 Auctions section
+        const resOpps = await fetch("/api/bidding/opportunities");
+        if (resOpps.ok) {
+          const dataOpps = await resOpps.json();
+          if (dataOpps.opportunities) setLiveAuctions(dataOpps.opportunities);
         }
       } catch (err) {
         console.error("Error loading buyer dashboard", err);
@@ -92,16 +100,16 @@ export default function BuyerDashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/buyer/requirements/new">
-            <button className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg border border-border bg-card/50 text-foreground hover:bg-card transition-all active:scale-95">
-              <FilePlus className="w-3.5 h-3.5 text-emerald-400" />
-              + Create Requirement
+          <Link href="/buyer/marketplace">
+            <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/20 transition-all active:scale-95 cursor-pointer">
+              <Gavel className="w-3.5 h-3.5" />
+              Browse CO₂ Auctions
             </button>
           </Link>
-          <Link href="/buyer/marketplace">
-            <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/20 transition-all active:scale-95">
-              <Search className="w-3.5 h-3.5" />
-              Find CO₂ Supply
+          <Link href="/buyer/requirements/new">
+            <button className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg border border-border bg-card/50 text-foreground hover:bg-card transition-all active:scale-95 cursor-pointer">
+              <FilePlus className="w-3.5 h-3.5 text-emerald-400" />
+              + Create Requirement
             </button>
           </Link>
         </div>
@@ -118,16 +126,18 @@ export default function BuyerDashboardPage() {
           <div className="text-xs text-muted-foreground mt-1 font-mono">Purity &gt; 99%</div>
         </div>
 
-        <div className="bg-card/40 border border-border/60 rounded-xl p-4 hover:border-emerald-500/40 transition-all">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-medium font-mono uppercase tracking-wider">ACTIVE BIDS</span>
-            <Gavel className="w-4 h-4 text-amber-400" />
+        <Link href="/buyer/bids" className="block">
+          <div className="bg-card/40 border border-border/60 rounded-xl p-4 hover:border-amber-500/40 transition-all cursor-pointer">
+            <div className="flex items-center justify-between text-muted-foreground mb-2">
+              <span className="text-xs font-medium font-mono uppercase tracking-wider">ACTIVE BIDS</span>
+              <Gavel className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="text-2xl font-bold text-foreground font-mono">{bids.length}</div>
+            <div className="text-xs text-emerald-400 mt-1 font-mono">
+              {bids.filter(b => b.status === 'WINNING' || b.status === 'ACCEPTED').length} Winning
+            </div>
           </div>
-          <div className="text-2xl font-bold text-foreground font-mono">{bids.length}</div>
-          <div className="text-xs text-emerald-400 mt-1 font-mono">
-            {bids.filter(b => b.status === 'WINNING').length} Winning
-          </div>
-        </div>
+        </Link>
 
         <div className="bg-card/40 border border-border/60 rounded-xl p-4 hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
@@ -155,6 +165,75 @@ export default function BuyerDashboardPage() {
           <div className="text-2xl font-bold text-foreground font-mono">₹4.2 L</div>
           <div className="text-xs text-emerald-400 mt-1 font-mono">vs standard market</div>
         </div>
+      </div>
+
+      {/* Section — Live CO2 Auctions */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground font-mono flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-emerald-400" />
+            LIVE CO₂ AUCTIONS ({liveAuctions.length})
+          </h2>
+          <Link href="/buyer/marketplace" className="text-xs text-emerald-400 hover:underline font-mono">
+            View All Auctions →
+          </Link>
+        </div>
+
+        {liveAuctions.length === 0 ? (
+          <div className="bg-card/40 border border-border/80 rounded-2xl p-8 text-center space-y-3 font-mono text-xs">
+            <p className="text-muted-foreground">No live auctions are available right now.</p>
+            <Link
+              href="/buyer/marketplace"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all"
+            >
+              Browse Marketplace
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-mono text-xs">
+            {liveAuctions.slice(0, 3).map((opp: any) => (
+              <div key={opp.id} className="bg-card/40 border border-border/80 rounded-2xl p-5 hover:border-emerald-500/40 transition-all space-y-3 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      {opp.status} • {opp.bid_count} Bids
+                    </span>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-emerald-400" /> LIVE
+                    </span>
+                  </div>
+
+                  <h3 className="font-bold text-foreground text-sm line-clamp-1">{opp.title}</h3>
+                  <p className="text-xs text-muted-foreground">{opp.dealer_name || opp.source?.company_name || 'CarbonBridge Trading'}</p>
+
+                  <div className="grid grid-cols-2 gap-2 bg-muted/20 p-2.5 rounded-xl border border-border/40 text-[11px]">
+                    <div>
+                      <span className="text-muted-foreground text-[9px] block uppercase">CO₂ QUANTITY</span>
+                      <span className="font-bold text-foreground">{opp.quantity} tonnes</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-[9px] block uppercase">CURRENT HIGHEST</span>
+                      <span className="font-bold text-emerald-400">₹{opp.current_highest_bid?.toLocaleString('en-IN')}/t</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between border-t border-border/40">
+                  <Link href={`/marketplace/bidding/${opp.id}`}>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs font-mono text-muted-foreground hover:text-foreground">
+                      View Auction
+                    </Button>
+                  </Link>
+                  <Link href={`/marketplace/bidding/${opp.id}`}>
+                    <Button size="sm" className="h-7 text-xs font-mono bg-emerald-600 hover:bg-emerald-500 text-white">
+                      Place Bid →
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Section — Active Bids Summary */}

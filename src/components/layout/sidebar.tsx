@@ -20,6 +20,7 @@ import {
   Package,
   Navigation,
   Users,
+  Gavel,
   ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
@@ -43,14 +44,16 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
     {
       group: 'DISCOVER',
       items: [
-        { label: 'Marketplace', href: '/buyer/marketplace', icon: Search },
+        { label: 'CO₂ Marketplace', href: '/buyer/marketplace', icon: Search },
+        { label: 'CO₂ Auctions', href: '/buyer/marketplace', icon: Sparkles },
         { label: 'My Requirements', href: '/buyer/requirements', icon: FileText },
       ],
     },
     {
-      group: 'PURCHASES',
+      group: 'PURCHASES & BIDS',
       items: [
-        { label: 'Supply Requests', href: '/buyer/requests', icon: ClockIcon },
+        { label: 'My Bids', href: '/buyer/bids', icon: Gavel },
+        { label: 'Supply Requests', href: '/buyer/requests', icon: Package },
         { label: 'Dealer Proposals', href: '/buyer/proposals', icon: ShieldCheck },
         { label: 'My Deals', href: '/buyer/deals', icon: CheckCircle2 },
       ],
