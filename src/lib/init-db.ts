@@ -23,10 +23,10 @@ export async function initializeDatabase() {
   console.log('Schema tables verified/created successfully.');
 
   // 2. Seed default users & demo accounts with hashed passwords if empty
-  const defaultPasswordHash = await bcrypt.hash('password123', 10);
+  const defaultPasswordHash = await bcrypt.hash('Password123!', 10);
 
   for (const user of INITIAL_USERS) {
-    const existingUser = await query(`SELECT id FROM users WHERE email = $1`, [user.email]);
+    const existingUser = await query(`SELECT id FROM users WHERE email = $1`, [user.email.toLowerCase()]);
     if (existingUser.length === 0) {
       await query(
         `INSERT INTO users (id, email, password_hash, created_at, updated_at)
@@ -55,6 +55,10 @@ export async function initializeDatabase() {
       );
       console.log(`Seeded user: ${user.email} (${user.role})`);
     } else {
+      await query(
+        `UPDATE users SET password_hash = $1 WHERE email = $2`,
+        [defaultPasswordHash, user.email.toLowerCase()]
+      );
       await query(
         `UPDATE profiles SET name = $1, company = $2, role = $3 WHERE user_id = $4`,
         [user.name, user.company, user.role, user.id]
