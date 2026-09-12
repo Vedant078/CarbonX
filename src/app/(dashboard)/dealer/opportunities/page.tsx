@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { 
   Sparkles, 
@@ -14,7 +15,8 @@ import {
   CheckCircle2, 
   ArrowRight, 
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  X
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { db } from "@/lib/db";
@@ -23,13 +25,14 @@ import { Button } from "@/components/ui/button";
 
 export default function DealerOpportunitiesPage() {
   const { user } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"bidding" | "matches">("bidding");
   const [matches, setMatches] = useState<MatchRecord[]>([]);
   const [opportunities, setOpportunities] = useState<BiddingOpportunity[]>([]);
   const [sources, setSources] = useState<CarbonSource[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // New Auction Form State
+  // New Auction Form State & Validations
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedSourceId, setSelectedSourceId] = useState("");
   const [auctionTitle, setAuctionTitle] = useState("");
@@ -37,10 +40,16 @@ export default function DealerOpportunitiesPage() {
   const [auctionQuantity, setAuctionQuantity] = useState("300");
   const [startingPrice, setStartingPrice] = useState("3800");
   const [minIncrement, setMinIncrement] = useState("50");
-  const [durationHours, setDurationHours] = useState("48");
+  const [durationHours, setDurationHours] = useState("12");
+
   const [submitting, setSubmitting] = useState(false);
+  const [modalError, setModalError] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -53,7 +62,7 @@ export default function DealerOpportunitiesPage() {
 
       setMatches(matchData);
       setSources(srcData);
-      if (srcData.length > 0) {
+      if (srcData.length > 0 && !selectedSourceId) {
         setSelectedSourceId(srcData[0].id);
       }
 
@@ -72,8 +81,87 @@ export default function DealerOpportunitiesPage() {
     loadData();
   }, []);
 
+  // Escape key handler to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showCreateModal) {
+        setShowCreateModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showCreateModal]);
+
+  // Validation functions
+  const validateForm = () => {
+    if (!selectedSourceId) return "Please select an industrial CO₂ source.";
+    if (!auctionTitle.trim()) return "Auction title is required.";
+
+    const qty = Number(auctionQuantity);
+    if (isNaN(qty) || qty <= 0) return "Quantity must be greater than zero.";
+
+    const price = Number(startingPrice);
+    if (isNaN(price) || price <= 0) return "Starting price must be greater than zero.";
+
+    const inc = Number(minIncrement);
+    if (isNaN(inc) || inc < 50 || !Number.isInteger(inc)) {
+      return "Minimum bid increment must be at least ₹50.";
+    }
+
+    const dur = Number(durationHours);
+    if (isNaN(dur) || dur < 12 || !Number.isInteger(dur)) {
+      return "Auction duration must be at least 12 hours.";
+    }
+
+    return null;
+  };
+
+  const getMinIncrementError = () => {
+    if (minIncrement === "" || minIncrement === undefined) return "Minimum bid increment is required.";
+    const inc = Number(minIncrement);
+    if (isNaN(inc) || inc < 50) return "Minimum bid increment must be at least ₹50.";
+    if (!Number.isInteger(inc)) return "Minimum bid increment must be a whole number.";
+    return null;
+  };
+
+  const getDurationError = () => {
+    if (durationHours === "" || durationHours === undefined) return "Auction duration is required.";
+    const dur = Number(durationHours);
+    if (isNaN(dur) || dur < 12) return "Auction duration must be at least 12 hours.";
+    if (!Number.isInteger(dur)) return "Auction duration must be a whole number.";
+    return null;
+  };
+
+  const getQuantityError = () => {
+    if (auctionQuantity === "" || auctionQuantity === undefined) return "Quantity is required.";
+    const qty = Number(auctionQuantity);
+    if (isNaN(qty) || qty <= 0) return "Quantity must be greater than zero.";
+    return null;
+  };
+
+  const getPriceError = () => {
+    if (startingPrice === "" || startingPrice === undefined) return "Starting price is required.";
+    const price = Number(startingPrice);
+    if (isNaN(price) || price <= 0) return "Starting price must be greater than zero.";
+    return null;
+  };
+
+  const minIncErr = getMinIncrementError();
+  const durErr = getDurationError();
+  const qtyErr = getQuantityError();
+  const priceErr = getPriceError();
+  const isFormInvalid = !!(minIncErr || durErr || qtyErr || priceErr || !auctionTitle.trim() || !selectedSourceId);
+
   const handleCreateAuction = async (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError("");
+
+    const validationError = validateForm();
+    if (validationError) {
+      setModalError(validationError);
+      return;
+    }
+
     setSubmitting(true);
     setActionError("");
     setActionSuccess("");
@@ -84,8 +172,8 @@ export default function DealerOpportunitiesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           carbon_source_id: selectedSourceId,
-          title: auctionTitle || "Spot CO₂ Supply Auction",
-          description: auctionDesc,
+          title: auctionTitle.trim(),
+          description: auctionDesc.trim(),
           quantity: Number(auctionQuantity),
           starting_price: Number(startingPrice),
           minimum_bid_increment: Number(minIncrement),
@@ -95,16 +183,18 @@ export default function DealerOpportunitiesPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setActionError(data.message || "Failed to create auction");
+        setModalError(data.message || "Failed to create auction");
       } else {
         setActionSuccess("Bidding Auction published successfully!");
         setShowCreateModal(false);
         setAuctionTitle("");
         setAuctionDesc("");
+        setMinIncrement("50");
+        setDurationHours("12");
         loadData();
       }
     } catch (err: any) {
-      setActionError(err.message || "Server Error");
+      setModalError(err.message || "Server Error");
     } finally {
       setSubmitting(false);
     }
@@ -151,8 +241,11 @@ export default function DealerOpportunitiesPage() {
 
         <div className="flex items-center gap-3">
           <Button 
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold"
+            onClick={() => {
+              setModalError("");
+              setShowCreateModal(true);
+            }}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold shadow-lg shadow-indigo-950/30 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" /> Launch CO₂ Auction
           </Button>
@@ -160,14 +253,14 @@ export default function DealerOpportunitiesPage() {
       </div>
 
       {actionError && (
-        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono rounded-xl flex items-center gap-2">
-          <AlertCircle className="w-4 h-4" /> {actionError}
+        <div className="p-3.5 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono rounded-xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {actionError}
         </div>
       )}
 
       {actionSuccess && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono rounded-xl flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> {actionSuccess}
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono rounded-xl flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0" /> {actionSuccess}
         </div>
       )}
 
@@ -312,116 +405,221 @@ export default function DealerOpportunitiesPage() {
         </div>
       )}
 
-      {/* Launch Auction Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border/80 rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl font-mono">
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <Gavel className="w-5 h-5 text-indigo-400" /> Launch Competitive CO₂ Auction
-              </h2>
+      {/* PORTAL-RENDERED LAUNCH AUCTION MODAL */}
+      {showCreateModal && mounted && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          {/* Dark backdrop overlay */}
+          <div 
+            onClick={() => setShowCreateModal(false)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
+          />
+
+          {/* Solid high-contrast opaque Modal Dialog Container */}
+          <div className="relative z-[1010] bg-slate-900 border border-slate-700/90 rounded-2xl p-6 sm:p-8 max-w-xl w-full text-slate-100 shadow-2xl space-y-5 font-mono my-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                  <Gavel className="w-5 h-5 text-indigo-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white tracking-tight">Launch Competitive CO₂ Auction</h2>
+                  <p className="text-[11px] text-slate-400">Publish spot supply auction to verified buyers</p>
+                </div>
+              </div>
               <button 
+                type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="text-muted-foreground hover:text-foreground text-sm"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                aria-label="Close modal"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* General Modal Error */}
+            {modalError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{modalError}</span>
+              </div>
+            )}
+
+            {/* Form */}
             <form onSubmit={handleCreateAuction} className="space-y-4 text-xs">
+              {/* Source Select */}
               <div>
-                <label className="block text-muted-foreground mb-1">Select Industrial CO₂ Source</label>
+                <label className="block text-slate-200 font-bold mb-1.5">
+                  Select Industrial CO₂ Source <span className="text-rose-400">*</span>
+                </label>
                 <select
                   value={selectedSourceId}
                   onChange={(e) => setSelectedSourceId(e.target.value)}
-                  className="w-full bg-muted/30 border border-border/80 rounded-lg px-3 py-2 text-foreground font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-800/90 border border-slate-600 rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 >
                   {sources.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-card text-foreground">
+                    <option key={s.id} value={s.id} className="bg-slate-900 text-white">
                       {s.company_name} ({s.facility_name}) — {s.available_quantity} t available @ ₹{s.price_per_tonne}/t
                     </option>
                   ))}
                 </select>
               </div>
 
+              {/* Title */}
               <div>
-                <label className="block text-muted-foreground mb-1">Auction Title</label>
+                <label className="block text-slate-200 font-bold mb-1.5">
+                  Auction Title <span className="text-rose-400">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Spot 500t Ultra-Pure CO2 Auction"
                   value={auctionTitle}
                   onChange={(e) => setAuctionTitle(e.target.value)}
-                  className="w-full bg-muted/30 border border-border/80 rounded-lg px-3 py-2 text-foreground font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-800/90 border border-slate-600 rounded-xl px-3.5 py-2.5 text-white placeholder:text-slate-500 font-mono text-xs focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Description (Optional) */}
+              <div>
+                <label className="block text-slate-200 font-bold mb-1.5">Auction Notes / Details (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Additional specs, purity verification, delivery timeframe..."
+                  value={auctionDesc}
+                  onChange={(e) => setAuctionDesc(e.target.value)}
+                  className="w-full bg-slate-800/90 border border-slate-600 rounded-xl px-3.5 py-2.5 text-white placeholder:text-slate-500 font-mono text-xs focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                />
+              </div>
+
+              {/* Quantity & Starting Price */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-muted-foreground mb-1">Auction Quantity (tonnes)</label>
+                  <label className="block text-slate-200 font-bold mb-1.5">
+                    Auction Quantity (tonnes) <span className="text-rose-400">*</span>
+                  </label>
                   <input
                     type="number"
+                    min="1"
+                    step="1"
                     required
                     value={auctionQuantity}
                     onChange={(e) => setAuctionQuantity(e.target.value)}
-                    className="w-full bg-muted/30 border border-border/80 rounded-lg px-3 py-2 text-foreground font-mono focus:outline-none focus:border-indigo-500"
+                    className={`w-full bg-slate-800/90 border rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:ring-2 transition-all ${
+                      qtyErr 
+                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' 
+                        : 'border-slate-600 focus:border-indigo-400 focus:ring-indigo-500/20'
+                    }`}
                   />
+                  {qtyErr && (
+                    <p className="text-rose-400 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" /> {qtyErr}
+                    </p>
+                  )}
                 </div>
+
                 <div>
-                  <label className="block text-muted-foreground mb-1">Starting Price (₹/tonne)</label>
+                  <label className="block text-slate-200 font-bold mb-1.5">
+                    Starting Price (₹/tonne) <span className="text-rose-400">*</span>
+                  </label>
                   <input
                     type="number"
+                    min="1"
+                    step="1"
                     required
                     value={startingPrice}
                     onChange={(e) => setStartingPrice(e.target.value)}
-                    className="w-full bg-muted/30 border border-border/80 rounded-lg px-3 py-2 text-foreground font-mono focus:outline-none focus:border-indigo-500"
+                    className={`w-full bg-slate-800/90 border rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:ring-2 transition-all ${
+                      priceErr 
+                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' 
+                        : 'border-slate-600 focus:border-indigo-400 focus:ring-indigo-500/20'
+                    }`}
                   />
+                  {priceErr && (
+                    <p className="text-rose-400 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" /> {priceErr}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Min Bid Increment & Duration (STRICT VALIDATIONS) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Min Bid Increment Input */}
                 <div>
-                  <label className="block text-muted-foreground mb-1">Min Bid Increment (₹)</label>
+                  <label className="block text-slate-200 font-bold mb-1.5">
+                    Min Bid Increment (₹) <span className="text-rose-400">*</span>
+                  </label>
                   <input
                     type="number"
+                    min="50"
+                    step="1"
                     required
                     value={minIncrement}
                     onChange={(e) => setMinIncrement(e.target.value)}
-                    className="w-full bg-muted/30 border border-border/80 rounded-lg px-3 py-2 text-foreground font-mono focus:outline-none focus:border-indigo-500"
+                    className={`w-full bg-slate-800/90 border rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:ring-2 transition-all ${
+                      minIncErr 
+                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' 
+                        : 'border-slate-600 focus:border-indigo-400 focus:ring-indigo-500/20'
+                    }`}
                   />
+                  <p className="text-slate-400 text-[10px] mt-1">Minimum allowed: ₹50</p>
+                  {minIncErr && (
+                    <p className="text-rose-400 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" /> {minIncErr}
+                    </p>
+                  )}
                 </div>
+
+                {/* Auction Duration Input */}
                 <div>
-                  <label className="block text-muted-foreground mb-1">Auction Duration (Hours)</label>
+                  <label className="block text-slate-200 font-bold mb-1.5">
+                    Auction Duration (Hours) <span className="text-rose-400">*</span>
+                  </label>
                   <input
                     type="number"
+                    min="12"
+                    step="1"
                     required
                     value={durationHours}
                     onChange={(e) => setDurationHours(e.target.value)}
-                    className="w-full bg-muted/30 border border-border/80 rounded-lg px-3 py-2 text-foreground font-mono focus:outline-none focus:border-indigo-500"
+                    className={`w-full bg-slate-800/90 border rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:ring-2 transition-all ${
+                      durErr 
+                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' 
+                        : 'border-slate-600 focus:border-indigo-400 focus:ring-indigo-500/20'
+                    }`}
                   />
+                  <p className="text-slate-400 text-[10px] mt-1">Minimum allowed: 12 hours</p>
+                  {durErr && (
+                    <p className="text-rose-400 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" /> {durErr}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end gap-3">
+              {/* Action buttons */}
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowCreateModal(false)}
-                  className="font-mono text-xs"
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 font-mono text-xs"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={submitting}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold"
+                  disabled={submitting || isFormInvalid}
+                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white font-mono text-xs font-bold shadow-lg shadow-indigo-950/40 transition-all active:scale-95"
                 >
                   {submitting ? "Publishing..." : "Publish CO₂ Auction →"}
                 </Button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
