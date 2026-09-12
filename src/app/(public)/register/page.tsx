@@ -76,10 +76,14 @@ function RegisterContent() {
 
       await register({
         email,
+        password,
         name,
         role,
         company: companyName,
         location,
+        buyerProfile: role === "BUYER" ? roleProfile : undefined,
+        dealerProfile: role === "DEALER" ? roleProfile : undefined,
+        logisticsProfile: role === "LOGISTICS_PROVIDER" ? roleProfile : undefined,
       });
 
       // Auth context register routes automatically to role dashboard

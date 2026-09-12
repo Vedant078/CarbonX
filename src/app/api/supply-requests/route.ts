@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireBuyer } from '@/lib/server-auth';
-import { db } from '@/lib/db';
+import { serverDb } from '@/lib/server-db';
 
 export async function POST(req: NextRequest) {
   const auth = await requireBuyer(req);
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const result = await db.createBuyerRequest({
+    const result = await serverDb.createBuyerRequest({
       buyer_id: auth.user.id,
       buyer_name: auth.user.company || auth.user.name,
       carbon_source_id: body.carbon_source_id || body.listing_id || 'src-mumbai-steel',

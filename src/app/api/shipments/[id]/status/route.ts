@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireLogisticsProvider } from '@/lib/server-auth';
-import { db } from '@/lib/db';
+import { serverDb } from '@/lib/server-db';
 import { ShipmentStatus } from '@/types';
 
 const ALLOWED_TRANSITIONS: Record<ShipmentStatus, ShipmentStatus[]> = {
@@ -26,7 +26,7 @@ export async function PATCH(
     const newStatus: ShipmentStatus = body.status;
     const note: string | undefined = body.note;
 
-    const currentShipment = await db.getShipmentById(id);
+    const currentShipment = await serverDb.getShipmentById(id);
     if (!currentShipment) {
       return NextResponse.json({ error: 'NOT_FOUND', message: 'Shipment not found' }, { status: 404 });
     }
@@ -43,7 +43,7 @@ export async function PATCH(
       );
     }
 
-    const updated = await db.updateShipmentStatus(id, newStatus, note, auth.user.id);
+    const updated = await serverDb.updateShipmentStatus(id, newStatus, note, auth.user.id);
 
     return NextResponse.json({
       success: true,

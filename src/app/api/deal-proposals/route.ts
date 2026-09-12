@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireDealer } from '@/lib/server-auth';
-import { db } from '@/lib/db';
+import { serverDb } from '@/lib/server-db';
 
 export async function POST(req: NextRequest) {
   const auth = await requireDealer(req);
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const proposal = await db.createDealerProposal({
+    const proposal = await serverDb.createDealerProposal({
       dealer_id: auth.user.id,
       dealer_name: auth.user.company || auth.user.name,
       buyer_id: body.buyer_id || 'user-buyer-demo',

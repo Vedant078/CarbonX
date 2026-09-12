@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireLogisticsProvider } from '@/lib/server-auth';
-import { db } from '@/lib/db';
+import { serverDb } from '@/lib/server-db';
 
 export async function POST(
   req: NextRequest,
@@ -14,7 +14,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
-    const shipment = await db.acceptShipment(
+    const shipment = await serverDb.acceptShipment(
       id,
       auth.user.id,
       auth.user.company || auth.user.name,

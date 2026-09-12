@@ -2,20 +2,31 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { UserProfile, UserRole } from '@/types';
-import { db } from '@/lib/db';
 import { getDashboardRouteForRole } from '@/lib/rbac';
 import { useRouter } from 'next/navigation';
+
+interface RegisterData {
+  name: string;
+  email: string;
+  password?: string;
+  company: string;
+  role?: UserRole;
+  location?: string;
+  buyerProfile?: any;
+  dealerProfile?: any;
+  logisticsProfile?: any;
+}
 
 interface AuthContextType {
   user: UserProfile | null;
   role: UserRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string) => Promise<UserProfile>;
+  login: (email: string, password?: string, isDemo?: boolean) => Promise<UserProfile>;
   loginWithGoogle: () => Promise<void>;
   selectRole: (role: UserRole) => Promise<void>;
-  register: (userData: Omit<UserProfile, 'id' | 'createdAt'>) => Promise<UserProfile>;
-  logout: () => void;
+  register: (userData: RegisterData) => Promise<UserProfile>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,32 +37,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadUser() {
+    async function loadUserSession() {
       try {
-        const current = await db.getCurrentUser();
-        setUser(current);
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
       } catch (err) {
-        console.error('Failed to load user session', err);
+        console.error('Failed to verify session:', err);
         setUser(null);
       } finally {
         setIsLoading(false);
       }
     }
-    loadUser();
+    loadUserSession();
   }, []);
 
-  const login = async (email: string): Promise<UserProfile> => {
+  const login = async (email: string, password?: string, isDemo = false): Promise<UserProfile> => {
     setIsLoading(true);
     try {
-      const loggedUser = await db.login(email);
-      setUser(loggedUser);
-      if (loggedUser.role) {
-        const target = getDashboardRouteForRole(loggedUser.role);
-        router.push(target);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, isDemo }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Invalid email or password');
+      }
+
+      setUser(data.user);
+      if (data.targetRoute) {
+        router.push(data.targetRoute);
+      } else if (data.user.role) {
+        router.push(getDashboardRouteForRole(data.user.role));
       } else {
         router.push('/select-role');
       }
-      return loggedUser;
+
+      return data.user;
     } finally {
       setIsLoading(false);
     }
@@ -60,62 +88,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      // OAuth Simulator: Default Google login creates or authenticates user profile
-      const users = await db.getUsers();
-      let googleUser = users.find((u) => u.email === 'buyer.demo@carbonx.demo') || users[0];
-
-      setUser(googleUser);
-      if (googleUser.role) {
-        const target = getDashboardRouteForRole(googleUser.role);
-        router.push(target);
-      } else {
-        router.push('/select-role');
-      }
+      // Authenticate as demo user via real backend login endpoint
+      await login('buyer.demo@carbonx.demo', undefined, true);
     } finally {
       setIsLoading(false);
     }
   };
 
   const selectRole = async (selectedRole: UserRole): Promise<void> => {
-    if (!user) return;
     setIsLoading(true);
     try {
-      const updatedUser: UserProfile = {
-        ...user,
-        role: selectedRole,
-      };
-      await db.setCurrentUserByRole(selectedRole);
-      setUser(updatedUser);
-      const target = getDashboardRouteForRole(selectedRole);
-      router.push(target);
+      const res = await fetch('/api/auth/select-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: selectedRole }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to assign role');
+      }
+
+      setUser(data.user);
+      router.push(data.targetRoute || getDashboardRouteForRole(selectedRole));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (userData: Omit<UserProfile, 'id' | 'createdAt'>): Promise<UserProfile> => {
+  const register = async (userData: RegisterData): Promise<UserProfile> => {
     setIsLoading(true);
     try {
-      const newUser = await db.registerUser(userData);
-      setUser(newUser);
-      if (newUser.role) {
-        const target = getDashboardRouteForRole(newUser.role);
-        router.push(target);
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      setUser(data.user);
+      if (data.user.role) {
+        router.push(getDashboardRouteForRole(data.user.role));
       } else {
         router.push('/select-role');
       }
-      return newUser;
+
+      return data.user;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('carbonx_current_user_v2');
+  const logout = async (): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setUser(null);
+      setIsLoading(false);
+      router.push('/login');
     }
-    router.push('/login');
   };
 
   return (

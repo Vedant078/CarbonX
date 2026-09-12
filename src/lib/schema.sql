@@ -1,0 +1,137 @@
+-- CarbonX PostgreSQL Database Schema
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id TEXT PRIMARY KEY,
+  user_id TEXT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  company TEXT NOT NULL,
+  role TEXT, -- 'BUYER', 'DEALER', 'LOGISTICS_PROVIDER', or NULL
+  location TEXT,
+  avatar_url TEXT,
+  buyer_profile JSONB,
+  dealer_profile JSONB,
+  logistics_profile JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS carbon_sources (
+  id TEXT PRIMARY KEY,
+  company_name TEXT NOT NULL,
+  facility_name TEXT NOT NULL,
+  industry TEXT NOT NULL,
+  location TEXT NOT NULL,
+  latitude DOUBLE PRECISION NOT NULL DEFAULT 19.0760,
+  longitude DOUBLE PRECISION NOT NULL DEFAULT 72.8777,
+  available_quantity DOUBLE PRECISION NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'tonnes/month',
+  purity DOUBLE PRECISION NOT NULL,
+  capture_method TEXT NOT NULL,
+  price_per_tonne DOUBLE PRECISION NOT NULL,
+  availability_date TEXT NOT NULL,
+  verification_status TEXT NOT NULL DEFAULT 'VERIFIED',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS buyer_requirements (
+  id TEXT PRIMARY KEY,
+  buyer_id TEXT NOT NULL,
+  buyer_name TEXT NOT NULL,
+  title TEXT NOT NULL,
+  application TEXT NOT NULL,
+  required_quantity DOUBLE PRECISION NOT NULL,
+  required_purity DOUBLE PRECISION NOT NULL,
+  location TEXT NOT NULL,
+  latitude DOUBLE PRECISION NOT NULL DEFAULT 19.0760,
+  longitude DOUBLE PRECISION NOT NULL DEFAULT 72.8777,
+  max_distance DOUBLE PRECISION NOT NULL DEFAULT 500,
+  max_price DOUBLE PRECISION NOT NULL DEFAULT 6000,
+  frequency TEXT NOT NULL DEFAULT 'Monthly Spot Agreement',
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS facilitated_deals (
+  id TEXT PRIMARY KEY,
+  dealer_id TEXT,
+  dealer_name TEXT,
+  buyer_id TEXT NOT NULL,
+  buyer_name TEXT NOT NULL,
+  carbon_source_id TEXT NOT NULL,
+  carbon_source_name TEXT NOT NULL,
+  requirement_id TEXT,
+  quantity DOUBLE PRECISION NOT NULL,
+  price_per_tonne DOUBLE PRECISION NOT NULL,
+  total_carbon_value DOUBLE PRECISION NOT NULL,
+  logistics_cost DOUBLE PRECISION NOT NULL,
+  total_value DOUBLE PRECISION NOT NULL,
+  match_score DOUBLE PRECISION NOT NULL,
+  commission DOUBLE PRECISION NOT NULL,
+  status TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS logistics_shipments (
+  id TEXT PRIMARY KEY,
+  deal_id TEXT NOT NULL,
+  logistics_provider_id TEXT,
+  logistics_provider_name TEXT,
+  origin TEXT NOT NULL,
+  destination TEXT NOT NULL,
+  distance_km DOUBLE PRECISION NOT NULL,
+  quantity DOUBLE PRECISION NOT NULL,
+  transport_mode TEXT NOT NULL,
+  vehicle_type TEXT NOT NULL,
+  driver_name TEXT NOT NULL,
+  estimated_cost DOUBLE PRECISION NOT NULL,
+  cost_per_tonne DOUBLE PRECISION NOT NULL,
+  estimated_delivery_days INTEGER NOT NULL,
+  pickup_date TEXT,
+  estimated_delivery TEXT,
+  status TEXT NOT NULL,
+  tracking_code TEXT NOT NULL,
+  tracking_notes JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS app_notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  role_target TEXT,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  link TEXT,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  action TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  details TEXT,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

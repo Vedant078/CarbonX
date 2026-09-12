@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireLogisticsProvider } from '@/lib/server-auth';
-import { db } from '@/lib/db';
+import { serverDb } from '@/lib/server-db';
 
 export async function PATCH(
   req: NextRequest,
@@ -15,7 +15,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
-    const updated = await db.updateTransportDetails(id, {
+    const updated = await serverDb.updateTransportDetails(id, {
       vehicle_type: body.vehicle_type,
       driver_name: body.driver_name,
       driver_phone: body.driver_phone,

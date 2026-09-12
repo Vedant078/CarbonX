@@ -3,10 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Briefcase, Truck, ArrowRight, ShieldCheck, Zap } from "lucide-react";
+import { ShoppingBag, Briefcase, Truck } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { getDashboardRouteForRole } from "@/lib/rbac";
-import { UserRole } from "@/types";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,16 +18,16 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await login(email);
+      await login(email, password, false);
     } catch (err: any) {
-      setError(err.message || "Invalid account email");
+      setError(err.message || "Invalid email or password");
     }
   };
 
   const handleDemoLogin = async (demoEmail: string) => {
     setError("");
     try {
-      await login(demoEmail);
+      await login(demoEmail, undefined, true);
     } catch (err: any) {
       setError(err.message || "Failed to log in as demo account");
     }
@@ -165,13 +163,31 @@ export default function LoginPage() {
               className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all"
             />
           </div>
+          <div>
+            <label className="block text-slate-800 font-bold mb-1">Password</label>
+            <input
+              type="password"
+              placeholder="••••••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+            />
+          </div>
           <button
             type="submit"
+            disabled={isLoading}
             className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
           >
-            Sign In with Email →
+            {isLoading ? "Signing In..." : "Sign In with Email →"}
           </button>
         </form>
+
+        <div className="text-center pt-2 font-mono text-xs text-slate-600">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="text-emerald-700 font-bold hover:underline">
+            Register for CarbonX →
+          </Link>
+        </div>
 
       </div>
     </div>
