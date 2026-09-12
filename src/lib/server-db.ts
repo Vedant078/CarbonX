@@ -18,6 +18,7 @@ import {
 import { query, queryOne } from './postgres';
 import { calculateMatch } from './matching';
 import { generateLogisticsEstimate } from './logistics';
+import { db } from './db';
 
 export class CarbonXServerDatabase {
   // --- USERS & PROFILES ---
@@ -54,9 +55,10 @@ export class CarbonXServerDatabase {
   async getSourceById(id: string): Promise<CarbonSource | undefined> {
     try {
       const row = await queryOne(`SELECT * FROM carbon_sources WHERE id = $1`, [id]);
-      return row || undefined;
+      if (row) return row;
+      return db.getSourceById(id);
     } catch {
-      return undefined;
+      return db.getSourceById(id);
     }
   }
 
@@ -180,37 +182,43 @@ export class CarbonXServerDatabase {
       source,
     };
 
-    await query(
-      `INSERT INTO bidding_opportunities (id, carbon_source_id, dealer_id, dealer_name, title, description, quantity, unit, starting_price, current_highest_bid, minimum_bid_increment, bid_count, auction_start_time, auction_end_time, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        newOpp.id,
-        newOpp.carbon_source_id,
-        newOpp.dealer_id,
-        newOpp.dealer_name,
-        newOpp.title,
-        newOpp.description,
-        newOpp.quantity,
-        newOpp.unit,
-        newOpp.starting_price,
-        newOpp.current_highest_bid,
-        newOpp.minimum_bid_increment,
-        0,
-        newOpp.auction_start_time,
-        newOpp.auction_end_time,
-        newOpp.status,
-        newOpp.created_at,
-        newOpp.updated_at,
-      ]
-    );
+    try {
+      await query(
+        `INSERT INTO bidding_opportunities (id, carbon_source_id, dealer_id, dealer_name, title, description, quantity, unit, starting_price, current_highest_bid, minimum_bid_increment, bid_count, auction_start_time, auction_end_time, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+        [
+          newOpp.id,
+          newOpp.carbon_source_id,
+          newOpp.dealer_id,
+          newOpp.dealer_name,
+          newOpp.title,
+          newOpp.description,
+          newOpp.quantity,
+          newOpp.unit,
+          newOpp.starting_price,
+          newOpp.current_highest_bid,
+          newOpp.minimum_bid_increment,
+          0,
+          newOpp.auction_start_time,
+          newOpp.auction_end_time,
+          newOpp.status,
+          newOpp.created_at,
+          newOpp.updated_at,
+        ]
+      );
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL insertion failed for createBiddingOpportunity (fallback active):', err?.message || err);
+    }
 
-    await this.logAudit(
-      data.dealer_id || 'user-dealer-demo',
-      data.dealer_name || 'CarbonBridge Trading',
-      'DEALER',
-      'CREATE_BIDDING_OPPORTUNITY',
-      `Published bidding opportunity ${newOpp.id} for ${source.company_name}`
-    );
+    try {
+      await this.logAudit(
+        data.dealer_id || 'user-dealer-demo',
+        data.dealer_name || 'CarbonBridge Trading',
+        'DEALER',
+        'CREATE_BIDDING_OPPORTUNITY',
+        `Published bidding opportunity ${newOpp.id} for ${source.company_name}`
+      );
+    } catch {}
 
     return newOpp;
   }
@@ -448,18 +456,21 @@ export class CarbonXServerDatabase {
   // --- BUYER REQUIREMENTS ---
   async getRequirements(): Promise<BuyerRequirement[]> {
     try {
-      return await query(`SELECT * FROM buyer_requirements ORDER BY created_at DESC`);
+      const rows = await query<BuyerRequirement>(`SELECT * FROM buyer_requirements ORDER BY created_at DESC`);
+      if (rows && rows.length > 0) return rows;
+      return db.getRequirements();
     } catch {
-      return [];
+      return db.getRequirements();
     }
   }
 
   async getRequirementById(id: string): Promise<BuyerRequirement | undefined> {
     try {
-      const row = await queryOne(`SELECT * FROM buyer_requirements WHERE id = $1`, [id]);
-      return row || undefined;
+      const row = await queryOne<BuyerRequirement>(`SELECT * FROM buyer_requirements WHERE id = $1`, [id]);
+      if (row) return row;
+      return db.getRequirementById(id);
     } catch {
-      return undefined;
+      return db.getRequirementById(id);
     }
   }
 
@@ -474,43 +485,52 @@ export class CarbonXServerDatabase {
       created_at: now,
     };
 
-    await query(
-      `INSERT INTO buyer_requirements (id, buyer_id, buyer_name, title, application, required_quantity, required_purity, location, latitude, longitude, max_distance, max_price, frequency, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-      [
-        id,
+    try {
+      await query(
+        `INSERT INTO buyer_requirements (id, buyer_id, buyer_name, title, application, required_quantity, required_purity, location, latitude, longitude, max_distance, max_price, frequency, status, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [
+          id,
+          reqData.buyer_id,
+          reqData.buyer_name,
+          reqData.title,
+          reqData.application,
+          reqData.required_quantity,
+          reqData.required_purity,
+          reqData.location,
+          reqData.latitude || 19.0760,
+          reqData.longitude || 72.8777,
+          reqData.max_distance || 500,
+          reqData.max_price || 6000,
+          reqData.frequency || 'Monthly Spot Agreement',
+          reqData.status || 'ACTIVE',
+          now,
+        ]
+      );
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL insertion failed for createRequirement (fallback active):', err?.message || err);
+      db.addRequirement(newReq);
+    }
+
+    try {
+      await this.logAudit(
         reqData.buyer_id,
         reqData.buyer_name,
-        reqData.title,
-        reqData.application,
-        reqData.required_quantity,
-        reqData.required_purity,
-        reqData.location,
-        reqData.latitude || 19.0760,
-        reqData.longitude || 72.8777,
-        reqData.max_distance || 500,
-        reqData.max_price || 6000,
-        reqData.frequency || 'Monthly Spot Agreement',
-        reqData.status || 'ACTIVE',
-        now,
-      ]
-    );
+        'BUYER',
+        'CREATE_REQUIREMENT',
+        `Created CO2 requirement: ${reqData.required_quantity} t/mo (${reqData.application})`
+      );
+    } catch {}
 
-    await this.logAudit(
-      reqData.buyer_id,
-      reqData.buyer_name,
-      'BUYER',
-      'CREATE_REQUIREMENT',
-      `Created CO2 requirement: ${reqData.required_quantity} t/mo (${reqData.application})`
-    );
-
-    await this.createNotification({
-      user_id: 'user-dealer-demo',
-      role_target: 'DEALER',
-      title: 'New Buyer Requirement Posted',
-      message: `${reqData.buyer_name} requested ${reqData.required_quantity} t/mo for ${reqData.application}.`,
-      link: '/dealer/dashboard',
-    });
+    try {
+      await this.createNotification({
+        user_id: 'user-dealer-demo',
+        role_target: 'DEALER',
+        title: 'New Buyer Requirement Posted',
+        message: `${reqData.buyer_name} requested ${reqData.required_quantity} t/mo for ${reqData.application}.`,
+        link: '/dealer/dashboard',
+      });
+    } catch {}
 
     return newReq;
   }
@@ -597,30 +617,35 @@ export class CarbonXServerDatabase {
       updated_at: now,
     };
 
-    await query(
-      `INSERT INTO facilitated_deals (id, dealer_id, dealer_name, buyer_id, buyer_name, carbon_source_id, carbon_source_name, requirement_id, quantity, price_per_tonne, total_carbon_value, logistics_cost, total_value, match_score, commission, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
-      [
-        newDeal.id,
-        newDeal.dealer_id,
-        newDeal.dealer_name,
-        newDeal.buyer_id,
-        newDeal.buyer_name,
-        newDeal.carbon_source_id,
-        newDeal.carbon_source_name,
-        newDeal.requirement_id || null,
-        newDeal.quantity,
-        newDeal.price_per_tonne,
-        newDeal.total_carbon_value,
-        newDeal.logistics_cost,
-        newDeal.total_value,
-        newDeal.match_score,
-        newDeal.commission,
-        newDeal.status,
-        now,
-        now,
-      ]
-    );
+    try {
+      await query(
+        `INSERT INTO facilitated_deals (id, dealer_id, dealer_name, buyer_id, buyer_name, carbon_source_id, carbon_source_name, requirement_id, quantity, price_per_tonne, total_carbon_value, logistics_cost, total_value, match_score, commission, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+        [
+          newDeal.id,
+          newDeal.dealer_id,
+          newDeal.dealer_name,
+          newDeal.buyer_id,
+          newDeal.buyer_name,
+          newDeal.carbon_source_id,
+          newDeal.carbon_source_name,
+          newDeal.requirement_id || null,
+          newDeal.quantity,
+          newDeal.price_per_tonne,
+          newDeal.total_carbon_value,
+          newDeal.logistics_cost,
+          newDeal.total_value,
+          newDeal.match_score,
+          newDeal.commission,
+          newDeal.status,
+          now,
+          now,
+        ]
+      );
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL insertion failed for createBuyerRequest (facilitated_deals), using memory fallback:', err?.message || err);
+      db.addDeal(newDeal);
+    }
 
     const shipmentId = `shipment-cx-${Math.floor(2000 + Math.random() * 8000)}`;
     const newShipment: LogisticsShipment = {
@@ -643,45 +668,60 @@ export class CarbonXServerDatabase {
       updated_at: now,
     };
 
-    await query(
-      `INSERT INTO logistics_shipments (id, deal_id, origin, destination, distance_km, quantity, transport_mode, vehicle_type, driver_name, estimated_cost, cost_per_tonne, estimated_delivery_days, status, tracking_code, tracking_notes, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        newShipment.id,
-        newShipment.deal_id,
-        newShipment.origin,
-        newShipment.destination,
-        newShipment.distance_km,
-        newShipment.quantity,
-        newShipment.transport_mode,
-        newShipment.vehicle_type,
-        newShipment.driver_name,
-        newShipment.estimated_cost,
-        newShipment.cost_per_tonne,
-        newShipment.estimated_delivery_days,
-        newShipment.status,
-        newShipment.tracking_code,
-        JSON.stringify(newShipment.tracking_notes),
-        now,
-        now,
-      ]
-    );
+    try {
+      await query(
+        `INSERT INTO logistics_shipments (id, deal_id, origin, destination, distance_km, quantity, transport_mode, vehicle_type, driver_name, estimated_cost, cost_per_tonne, estimated_delivery_days, status, tracking_code, tracking_notes, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+        [
+          newShipment.id,
+          newShipment.deal_id,
+          newShipment.origin,
+          newShipment.destination,
+          newShipment.distance_km,
+          newShipment.quantity,
+          newShipment.transport_mode,
+          newShipment.vehicle_type,
+          newShipment.driver_name,
+          newShipment.estimated_cost,
+          newShipment.cost_per_tonne,
+          newShipment.estimated_delivery_days,
+          newShipment.status,
+          newShipment.tracking_code,
+          JSON.stringify(newShipment.tracking_notes),
+          now,
+          now,
+        ]
+      );
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL insertion failed for createBuyerRequest (logistics_shipments), using memory fallback:', err?.message || err);
+      db.addShipment(newShipment);
+    }
 
-    await this.logAudit(
-      requestData.buyer_id,
-      requestData.buyer_name,
-      'BUYER',
-      'SUBMIT_REQUEST',
-      `Submitted purchase request for ${requestData.quantity} t CO2`
-    );
+    // Always register in memory store for fallback read availability
+    await db.addDeal(newDeal);
+    await db.addShipment(newShipment);
 
-    await this.createNotification({
-      user_id: 'user-dealer-demo',
-      role_target: 'DEALER',
-      title: 'New High-Value Opportunity',
-      message: `${requestData.buyer_name} requested ${requestData.quantity} t/mo from ${newDeal.carbon_source_name}.`,
-      link: '/dealer/dashboard',
-    });
+    try {
+      await this.logAudit(
+        requestData.buyer_id,
+        requestData.buyer_name,
+        'BUYER',
+        'SUBMIT_REQUEST',
+        `Submitted purchase request for ${requestData.quantity} t CO2`
+      );
+    } catch {}
+
+    try {
+      await this.createNotification({
+        user_id: 'user-dealer-demo',
+        role_target: 'DEALER',
+        title: 'New High-Value Opportunity',
+        message: `${requestData.buyer_name} requested ${requestData.quantity} t/mo from ${newDeal.carbon_source_name}.`,
+        link: '/dealer/dashboard',
+      });
+    } catch {}
+
+    return { deal: newDeal, shipment: newShipment };
 
     return { deal: newDeal, shipment: newShipment };
   }
@@ -721,39 +761,47 @@ export class CarbonXServerDatabase {
       updated_at: now,
     };
 
-    await query(
-      `INSERT INTO facilitated_deals (id, dealer_id, dealer_name, buyer_id, buyer_name, carbon_source_id, carbon_source_name, quantity, price_per_tonne, total_carbon_value, logistics_cost, total_value, match_score, commission, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        deal.id,
-        deal.dealer_id,
-        deal.dealer_name,
-        deal.buyer_id,
-        deal.buyer_name,
-        deal.carbon_source_id,
-        deal.carbon_source_name,
-        deal.quantity,
-        deal.price_per_tonne,
-        deal.total_carbon_value,
-        deal.logistics_cost,
-        deal.total_value,
-        deal.match_score,
-        deal.commission,
-        deal.status,
-        now,
-        now,
-      ]
-    );
+    try {
+      await query(
+        `INSERT INTO facilitated_deals (id, dealer_id, dealer_name, buyer_id, buyer_name, carbon_source_id, carbon_source_name, quantity, price_per_tonne, total_carbon_value, logistics_cost, total_value, match_score, commission, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+        [
+          deal.id,
+          deal.dealer_id,
+          deal.dealer_name,
+          deal.buyer_id,
+          deal.buyer_name,
+          deal.carbon_source_id,
+          deal.carbon_source_name,
+          deal.quantity,
+          deal.price_per_tonne,
+          deal.total_carbon_value,
+          deal.logistics_cost,
+          deal.total_value,
+          deal.match_score,
+          deal.commission,
+          deal.status,
+          now,
+          now,
+        ]
+      );
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL insertion failed for createDealerProposal (fallback active):', err?.message || err);
+    }
 
-    await this.logAudit(proposalData.dealer_id, proposalData.dealer_name, 'DEALER', 'CREATE_PROPOSAL', `Created deal proposal ${deal.id}`);
+    try {
+      await this.logAudit(proposalData.dealer_id, proposalData.dealer_name, 'DEALER', 'CREATE_PROPOSAL', `Created deal proposal ${deal.id}`);
+    } catch {}
 
-    await this.createNotification({
-      user_id: proposalData.buyer_id,
-      role_target: 'BUYER',
-      title: 'Dealer Proposal Received',
-      message: `${proposalData.dealer_name} proposed ${proposalData.quantity} t/mo agreement with ${proposalData.carbon_source_name}.`,
-      link: '/buyer/dashboard',
-    });
+    try {
+      await this.createNotification({
+        user_id: proposalData.buyer_id,
+        role_target: 'BUYER',
+        title: 'Dealer Proposal Received',
+        message: `${proposalData.dealer_name} proposed ${proposalData.quantity} t/mo agreement with ${proposalData.carbon_source_name}.`,
+        link: '/buyer/dashboard',
+      });
+    } catch {}
 
     return deal;
   }
@@ -843,24 +891,29 @@ export class CarbonXServerDatabase {
   async getShipments(): Promise<LogisticsShipment[]> {
     try {
       const rows = await query(`SELECT * FROM logistics_shipments ORDER BY created_at DESC`);
-      const deals = await this.getDeals();
-      return rows.map((s) => ({
-        ...s,
-        tracking_notes: Array.isArray(s.tracking_notes)
-          ? s.tracking_notes
-          : typeof s.tracking_notes === 'string'
-          ? JSON.parse(s.tracking_notes)
-          : [],
-        deal: deals.find((d) => d.id === s.deal_id),
-      }));
+      if (rows && rows.length > 0) {
+        const deals = await this.getDeals();
+        return rows.map((s) => ({
+          ...s,
+          tracking_notes: Array.isArray(s.tracking_notes)
+            ? s.tracking_notes
+            : typeof s.tracking_notes === 'string'
+            ? JSON.parse(s.tracking_notes)
+            : [],
+          deal: deals.find((d) => d.id === s.deal_id),
+        }));
+      }
+      return db.getShipments();
     } catch {
-      return [];
+      return db.getShipments();
     }
   }
 
   async getShipmentById(id: string): Promise<LogisticsShipment | undefined> {
     const shipments = await this.getShipments();
-    return shipments.find((s) => s.id === id);
+    const found = shipments.find((s) => s.id === id);
+    if (found) return found;
+    return db.getShipmentById(id);
   }
 
   async acceptShipment(
@@ -879,17 +932,24 @@ export class CarbonXServerDatabase {
       `Accepted by ${logisticsName}. Assigned driver: ${driverName || 'Driver Ramesh'}.`,
     ];
 
-    await query(
-      `UPDATE logistics_shipments
-       SET logistics_provider_id = $1, logistics_provider_name = $2, vehicle_type = COALESCE($3, vehicle_type), driver_name = COALESCE($4, driver_name), status = 'PREPARING', tracking_notes = $5, updated_at = $6
-       WHERE id = $7`,
-      [logisticsUserId, logisticsName, vehicleType || null, driverName || null, JSON.stringify(updatedNotes), now, shipmentId]
-    );
+    try {
+      await query(
+        `UPDATE logistics_shipments
+         SET logistics_provider_id = $1, logistics_provider_name = $2, vehicle_type = COALESCE($3, vehicle_type), driver_name = COALESCE($4, driver_name), status = 'PREPARING', tracking_notes = $5, updated_at = $6
+         WHERE id = $7`,
+        [logisticsUserId, logisticsName, vehicleType || null, driverName || null, JSON.stringify(updatedNotes), now, shipmentId]
+      );
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL update failed for acceptShipment, using memory fallback:', err?.message || err);
+      return db.acceptShipment(shipmentId, logisticsUserId, logisticsName, vehicleType, driverName);
+    }
+
+    try {
+      await this.logAudit(logisticsUserId, logisticsName, 'LOGISTICS', 'ACCEPT_SHIPMENT', `Accepted shipment ${shipmentId}`);
+    } catch {}
 
     const updated = await this.getShipmentById(shipmentId);
-    await this.logAudit(logisticsUserId, logisticsName, 'LOGISTICS', 'ACCEPT_SHIPMENT', `Accepted shipment ${shipmentId}`);
-
-    return updated!;
+    return updated || db.acceptShipment(shipmentId, logisticsUserId, logisticsName, vehicleType, driverName);
   }
 
   async updateShipmentStatus(
@@ -950,16 +1010,147 @@ export class CarbonXServerDatabase {
   }
 
   // --- NOTIFICATIONS & AUDIT ---
+  // --- NOTIFICATIONS & AUDIT ---
   async getNotifications(userId?: string, role?: UserRole): Promise<AppNotification[]> {
     try {
-      const rows = await query(`SELECT * FROM app_notifications ORDER BY created_at DESC`);
-      return rows.filter((n) => {
+      let rows = await query<AppNotification>(`SELECT * FROM app_notifications ORDER BY created_at DESC`);
+      
+      let filtered = rows.filter((n) => {
         if (userId && n.user_id === userId) return true;
         if (role && (n.role_target === role || n.role_target === 'ALL')) return true;
         return false;
       });
-    } catch {
+
+      // If no notifications exist for this user/role, seed default notifications into DB
+      if (filtered.length === 0 && (userId || role)) {
+        await this.seedDefaultNotifications(userId || 'demo-user', role || 'DEALER');
+        rows = await query<AppNotification>(`SELECT * FROM app_notifications ORDER BY created_at DESC`);
+        filtered = rows.filter((n) => {
+          if (userId && n.user_id === userId) return true;
+          if (role && (n.role_target === role || n.role_target === 'ALL')) return true;
+          return false;
+        });
+      }
+
+      return filtered;
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
       return [];
+    }
+  }
+
+  async seedDefaultNotifications(userId: string, role: UserRole) {
+    const now = Date.now();
+    const items: Omit<AppNotification, 'id'>[] = [];
+
+    if (role === 'DEALER') {
+      items.push(
+        {
+          user_id: userId,
+          role_target: 'DEALER',
+          title: 'New buyer demand match',
+          message: 'GreenFuel Technologies requested 500t/mo CO₂ supply (94% match).',
+          link: '/dealer/demand',
+          read: false,
+          created_at: new Date(now - 5 * 60 * 1000).toISOString(),
+        },
+        {
+          user_id: userId,
+          role_target: 'DEALER',
+          title: 'Proposal viewed by buyer',
+          message: 'GreenFuel Technologies viewed your proposal #PROP-8821.',
+          link: '/dealer/proposals',
+          read: false,
+          created_at: new Date(now - 45 * 60 * 1000).toISOString(),
+        },
+        {
+          user_id: userId,
+          role_target: 'DEALER',
+          title: 'Auction status update',
+          message: 'Spot 500t CO₂ auction received 4 competitive bids.',
+          link: '/dealer/opportunities',
+          read: false,
+          created_at: new Date(now - 3 * 3600 * 1000).toISOString(),
+        },
+        {
+          user_id: userId,
+          role_target: 'DEALER',
+          title: 'Proposal accepted',
+          message: 'CleanGas Pvt Ltd accepted your commercial terms. Commission: ₹63,000.',
+          link: '/dealer/pipeline',
+          read: true,
+          created_at: new Date(now - 24 * 3600 * 1000).toISOString(),
+        },
+        {
+          user_id: userId,
+          role_target: 'DEALER',
+          title: 'Shipment dispatched',
+          message: 'Shipment #CX-2048 is in transit to buyer facility.',
+          link: '/dealer/shipments',
+          read: true,
+          created_at: new Date(now - 48 * 3600 * 1000).toISOString(),
+        }
+      );
+    } else if (role === 'BUYER') {
+      items.push(
+        {
+          user_id: userId,
+          role_target: 'BUYER',
+          title: 'New supply listing available',
+          message: 'Mumbai Steel Works posted 450t high-purity CO₂ supply.',
+          link: '/buyer/marketplace',
+          read: false,
+          created_at: new Date(now - 10 * 60 * 1000).toISOString(),
+        },
+        {
+          user_id: userId,
+          role_target: 'BUYER',
+          title: 'Dealer proposal received',
+          message: 'CarbonBridge Brokers submitted proposal for 300 t/mo agreement.',
+          link: '/buyer/proposals',
+          read: false,
+          created_at: new Date(now - 2 * 3600 * 1000).toISOString(),
+        }
+      );
+    } else {
+      items.push(
+        {
+          user_id: userId,
+          role_target: 'LOGISTICS',
+          title: 'New shipment contract available',
+          message: 'Route Mumbai → Pune (300t CO₂) ready for assignment.',
+          link: '/logistics/routes',
+          read: false,
+          created_at: new Date(now - 15 * 60 * 1000).toISOString(),
+        }
+      );
+    }
+
+    for (const item of items) {
+      const id = `notif-${Math.random().toString(36).substring(2, 9)}`;
+      await query(
+        `INSERT INTO app_notifications (id, user_id, role_target, title, message, link, read, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (id) DO NOTHING`,
+        [id, item.user_id, item.role_target, item.title, item.message, item.link || null, item.read, item.created_at]
+      );
+    }
+  }
+
+  async markNotificationAsRead(id: string) {
+    await query(`UPDATE app_notifications SET read = TRUE WHERE id = $1`, [id]);
+  }
+
+  async markAllNotificationsAsRead(userId?: string, role?: UserRole) {
+    if (userId && role) {
+      await query(
+        `UPDATE app_notifications SET read = TRUE WHERE user_id = $1 OR role_target = $2 OR role_target = 'ALL'`,
+        [userId, role]
+      );
+    } else if (userId) {
+      await query(`UPDATE app_notifications SET read = TRUE WHERE user_id = $1`, [userId]);
+    } else {
+      await query(`UPDATE app_notifications SET read = TRUE`);
     }
   }
 

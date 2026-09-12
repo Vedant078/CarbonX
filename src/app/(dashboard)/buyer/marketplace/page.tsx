@@ -17,6 +17,7 @@ export default function BuyerMarketplacePage() {
   const [minPurity, setMinPurity] = useState<number>(95);
   const [requestingId, setRequestingId] = useState<string | null>(null);
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -58,6 +59,9 @@ export default function BuyerMarketplacePage() {
 
   const handleRequestSupply = async (source: CarbonSource) => {
     setRequestingId(source.id);
+    setRequestError(null);
+    setRequestSuccess(null);
+
     try {
       const res = await fetch("/api/supply-requests", {
         method: "POST",
@@ -68,15 +72,22 @@ export default function BuyerMarketplacePage() {
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      }
+
       if (!res.ok) {
-        alert(`Authorization Failed: ${data.message}`);
+        const errMsg = data?.error?.message || data?.message || "Unable to submit supply request. Please try again.";
+        setRequestError(errMsg);
       } else {
         setRequestSuccess(`Supply request created for ${source.company_name}!`);
-        setTimeout(() => setRequestSuccess(null), 4000);
+        setTimeout(() => setRequestSuccess(null), 5000);
       }
     } catch (e: any) {
       console.error(e);
+      setRequestError("The backend service is temporarily unavailable. Please try again.");
     } finally {
       setRequestingId(null);
     }
@@ -106,8 +117,15 @@ export default function BuyerMarketplacePage() {
         </Link>
       </div>
 
+      {requestError && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-600 p-4 rounded-xl font-mono text-xs flex items-center justify-between animate-in fade-in">
+          <span>{requestError}</span>
+          <button onClick={() => setRequestError(null)} className="text-red-500 hover:text-red-700 font-bold ml-4">✕</button>
+        </div>
+      )}
+
       {requestSuccess && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl font-mono text-xs flex items-center justify-between animate-in fade-in">
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 p-4 rounded-xl font-mono text-xs flex items-center justify-between animate-in fade-in">
           <span className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" /> {requestSuccess}
           </span>

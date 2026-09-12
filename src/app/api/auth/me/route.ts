@@ -1,25 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { queryOne } from '@/lib/postgres';
+import { db } from '@/lib/db';
 import { UserProfile, UserRole } from '@/types';
 import { INITIAL_USERS } from '@/lib/seed-data';
 
 export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('carbonx_session')?.value;
+    let token: string | undefined = undefined;
+    try {
+      const cookieStore = await cookies();
+      token = cookieStore.get('carbonx_session')?.value;
+    } catch {
+      // Ignore outside request context
+    }
+    if (!token) {
+      token = req.headers.get('x-session-token') || undefined;
+    }
 
     if (!token) {
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
-    // Demo token fallback resolution
-    if (token.startsWith('demo-token-')) {
-      const matched = INITIAL_USERS.find((u) => token.includes(u.id)) || INITIAL_USERS[0];
+    // 1. Check Server Memory Session Cache
+    const cachedUser = db.validateSession(token);
+    if (cachedUser) {
+      return NextResponse.json({ user: cachedUser });
+    }
+
+    // 2. Demo token fallback resolution
+    if (token.includes('demo') || token.startsWith('demo-token-')) {
+      const matched = INITIAL_USERS.find((u) => token.includes(u.role.toLowerCase()) || token.includes(u.id)) || INITIAL_USERS[0];
       return NextResponse.json({ user: matched });
     }
 
-    // Find active non-expired session in PostgreSQL
+    // 3. Find active non-expired session in PostgreSQL
     let session = null;
     let profile = null;
 
@@ -45,7 +60,7 @@ export async function GET(req: NextRequest) {
         }>(`SELECT * FROM profiles WHERE user_id = $1`, [session.user_id]);
       }
     } catch (dbErr) {
-      console.error('/api/auth/me database query error:', dbErr);
+      console.warn('/api/auth/me database query warning:', dbErr);
     }
 
     if (profile && session) {

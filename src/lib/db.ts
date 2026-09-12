@@ -54,15 +54,16 @@ class CarbonXDatabase {
     return target;
   }
 
-  async registerUser(userData: Omit<UserProfile, 'id' | 'createdAt'>): Promise<UserProfile> {
-    const newUser: UserProfile = {
-      ...userData,
-      id: `user-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.users = [...this.users, newUser];
-    this.currentUser = newUser;
-    return newUser;
+  async registerUser(userData: UserProfile): Promise<UserProfile> {
+    const existing = this.users.find((u) => u.email.toLowerCase() === userData.email.toLowerCase());
+    if (existing) {
+      const err: any = new Error('An account with this email address already exists. Please sign in instead.');
+      err.code = 'EMAIL_EXISTS';
+      throw err;
+    }
+    this.users = [...this.users, userData];
+    this.currentUser = userData;
+    return userData;
   }
 
   async login(email: string): Promise<UserProfile> {
@@ -165,6 +166,16 @@ class CarbonXDatabase {
     return this.requirements.find((r) => r.id === id);
   }
 
+  async addRequirement(req: BuyerRequirement): Promise<BuyerRequirement> {
+    const existingIdx = this.requirements.findIndex((r) => r.id === req.id);
+    if (existingIdx !== -1) {
+      this.requirements[existingIdx] = req;
+    } else {
+      this.requirements = [req, ...this.requirements];
+    }
+    return req;
+  }
+
   async createRequirement(
     reqData: Omit<BuyerRequirement, 'id' | 'created_at'>
   ): Promise<BuyerRequirement> {
@@ -173,8 +184,7 @@ class CarbonXDatabase {
       id: `req-${Date.now()}`,
       created_at: new Date().toISOString(),
     };
-    this.requirements = [newReq, ...this.requirements];
-    return newReq;
+    return this.addRequirement(newReq);
   }
 
   // --- MATCHES ENGINE ---
@@ -204,6 +214,26 @@ class CarbonXDatabase {
   }
 
   // --- DEALS & PROPOSALS ---
+  async addDeal(deal: FacilitatedDeal): Promise<FacilitatedDeal> {
+    const idx = this.deals.findIndex((d) => d.id === deal.id);
+    if (idx !== -1) {
+      this.deals[idx] = deal;
+    } else {
+      this.deals = [deal, ...this.deals];
+    }
+    return deal;
+  }
+
+  async addShipment(shipment: LogisticsShipment): Promise<LogisticsShipment> {
+    const idx = this.shipments.findIndex((s) => s.id === shipment.id);
+    if (idx !== -1) {
+      this.shipments[idx] = shipment;
+    } else {
+      this.shipments = [shipment, ...this.shipments];
+    }
+    return shipment;
+  }
+
   async getDeals(): Promise<FacilitatedDeal[]> {
     return this.deals.map((d) => ({
       ...d,
@@ -435,6 +465,29 @@ class CarbonXDatabase {
     if (details.estimated_delivery) this.shipments[idx].estimated_delivery = details.estimated_delivery;
 
     return this.shipments[idx];
+  }
+
+  // --- SERVER SESSION MANAGEMENT ---
+  private activeSessions: Map<string, { user: UserProfile; expiresAt: Date }> = new Map();
+
+  saveSession(token: string, user: UserProfile, durationDays = 30) {
+    const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+    this.activeSessions.set(token, { user, expiresAt });
+  }
+
+  validateSession(token: string): UserProfile | null {
+    if (!token) return null;
+    const session = this.activeSessions.get(token);
+    if (!session) return null;
+    if (session.expiresAt < new Date()) {
+      this.activeSessions.delete(token);
+      return null;
+    }
+    return session.user;
+  }
+
+  deleteSession(token: string) {
+    if (token) this.activeSessions.delete(token);
   }
 
   // --- NOTIFICATIONS & AUDIT ---

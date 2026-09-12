@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { query } from '@/lib/postgres';
+import { db } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,8 +9,15 @@ export async function POST(req: NextRequest) {
     const token = cookieStore.get('carbonx_session')?.value;
 
     if (token) {
-      // Invalidate session in PostgreSQL
-      await query(`DELETE FROM sessions WHERE token = $1`, [token]);
+      // Invalidate in server-side session cache
+      db.deleteSession(token);
+
+      // Invalidate session in PostgreSQL if reachable
+      try {
+        await query(`DELETE FROM sessions WHERE token = $1`, [token]);
+      } catch (dbErr) {
+        console.warn('[logout] PostgreSQL session delete warning:', dbErr);
+      }
     }
 
     // Clear HTTP-only cookie
@@ -25,7 +33,7 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error('Logout API error:', err);
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: 'Failed to process logout.' },
+      { success: false, error: 'SERVER_ERROR', message: 'Failed to process logout.' },
       { status: 500 }
     );
   }

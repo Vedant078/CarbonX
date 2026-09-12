@@ -181,9 +181,38 @@ export default function DealerOpportunitiesPage() {
         }),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get("content-type");
+      let data: any = null;
+      let rawText = "";
+
+      if (contentType && contentType.includes("application/json")) {
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+      } else {
+        try {
+          rawText = await res.text();
+        } catch {
+          rawText = "";
+        }
+      }
+
       if (!res.ok) {
-        setModalError(data.message || "Failed to create auction");
+        if (data && (data.message || data.error)) {
+          setModalError(data.message || data.error);
+        } else if (res.status === 401) {
+          setModalError("Your session has expired. Please log in again.");
+        } else if (res.status === 403) {
+          setModalError("You do not have permission to create an auction.");
+        } else if (res.status === 404) {
+          setModalError("The selected CO₂ source could not be found.");
+        } else if (res.status >= 500) {
+          setModalError("The auction could not be created because of a server or database error.");
+        } else {
+          setModalError(rawText || `Server error (HTTP ${res.status}).`);
+        }
       } else {
         setActionSuccess("Bidding Auction published successfully!");
         setShowCreateModal(false);
@@ -194,7 +223,7 @@ export default function DealerOpportunitiesPage() {
         loadData();
       }
     } catch (err: any) {
-      setModalError(err.message || "Server Error");
+      setModalError(err?.message || "Unable to connect to server. Please check your connection.");
     } finally {
       setSubmitting(false);
     }

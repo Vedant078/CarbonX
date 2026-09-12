@@ -6,6 +6,7 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
+    "db:init": "npx tsx src/scripts/init-db-cli.ts",
     "lint": "eslint"
   },
   "dependencies": {

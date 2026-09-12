@@ -9,13 +9,38 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: 'INVALID_INPUT', message: 'Invalid JSON request body' },
+        },
+        { status: 400 }
+      );
+    }
+
+    const quantity = Number(body.quantity || 300);
+    if (isNaN(quantity) || quantity <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: 'INVALID_INPUT', message: 'Request quantity must be greater than zero.' },
+        },
+        { status: 400 }
+      );
+    }
+
+    const carbonSourceId = body.carbon_source_id || body.listing_id || 'src-mumbai-steel';
+
     const result = await serverDb.createBuyerRequest({
       buyer_id: auth.user.id,
       buyer_name: auth.user.company || auth.user.name,
-      carbon_source_id: body.carbon_source_id || body.listing_id || 'src-mumbai-steel',
+      carbon_source_id: carbonSourceId,
       requirement_id: body.requirement_id,
-      quantity: Number(body.quantity || 300),
+      quantity,
     });
 
     return NextResponse.json(
@@ -28,6 +53,16 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err: any) {
-    return NextResponse.json({ error: 'SERVER_ERROR', message: err.message }, { status: 500 });
+    console.error('[supply-requests] Error creating supply request:', err?.message || err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'DATABASE_UNAVAILABLE',
+          message: 'The database is temporarily unavailable. Please try again.',
+        },
+      },
+      { status: 503 }
+    );
   }
 }

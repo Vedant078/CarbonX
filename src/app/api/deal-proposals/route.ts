@@ -9,7 +9,30 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, errorCode: 'INVALID_INPUT', message: 'Invalid JSON request body' },
+        { status: 400 }
+      );
+    }
+
+    const quantity = Number(body.quantity);
+    const price_per_tonne = Number(body.price_per_tonne);
+
+    if (isNaN(quantity) || quantity <= 0 || isNaN(price_per_tonne) || price_per_tonne <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          errorCode: 'INVALID_INPUT',
+          message: 'Proposal volume and price per tonne must be greater than zero.',
+        },
+        { status: 400 }
+      );
+    }
+
     const proposal = await serverDb.createDealerProposal({
       dealer_id: auth.user.id,
       dealer_name: auth.user.company || auth.user.name,
@@ -17,8 +40,8 @@ export async function POST(req: NextRequest) {
       buyer_name: body.buyer_name || 'GreenFuel Technologies',
       carbon_source_id: body.carbon_source_id || 'src-mumbai-steel',
       carbon_source_name: body.carbon_source_name || 'Mumbai Steel Works',
-      quantity: Number(body.quantity || 300),
-      price_per_tonne: Number(body.price_per_tonne || 4200),
+      quantity,
+      price_per_tonne,
     });
 
     return NextResponse.json(
@@ -30,6 +53,14 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err: any) {
-    return NextResponse.json({ error: 'SERVER_ERROR', message: err.message }, { status: 500 });
+    console.error('[deal-proposals] Error creating proposal:', err?.message || err);
+    return NextResponse.json(
+      {
+        success: false,
+        errorCode: 'PROPOSAL_CREATION_FAILED',
+        message: err?.message || 'Unable to create dealer proposal',
+      },
+      { status: 500 }
+    );
   }
 }

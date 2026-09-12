@@ -35,3 +35,21 @@ export function formatDate(dateString: string): string {
     year: 'numeric',
   }).format(date);
 }
+
+export function formatRelativeTime(dateString: string): string {
+  if (!dateString) return '';
+  const now = Date.now();
+  const past = new Date(dateString).getTime();
+  const diffMs = now - past;
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 3600));
+  const diffDays = Math.floor(diffMs / (1000 * 86400));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return formatDate(dateString);
+}
+
