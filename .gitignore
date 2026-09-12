@@ -42,11 +42,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# AI Agent Folders
+# AI Agent Folders & Instruction Files
 /.agents
 /agent
 /.claude
 /.codex
+CLAUDE.md
+claude.md
+AGENTS.md
+agents.md
 
 # Operating System files
 .DS_Store
