@@ -176,69 +176,106 @@ export default function BuyerMarketplacePage() {
       {/* TAB 1: COMPETITIVE BIDDING OPPORTUNITIES */}
       {activeTab === "BIDDING" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredOpps.map((opp) => {
-              const src = opp.source;
-              return (
-                <div
-                  key={opp.id}
-                  className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        {opp.status} • {opp.bid_count} Bids
+          {filteredOpps.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-3 shadow-xs">
+              <Sparkles className="w-8 h-8 text-emerald-500 mx-auto" />
+              <h3 className="font-mono text-base font-bold text-slate-900">No Bidding Opportunities Found</h3>
+              <p className="text-xs font-mono text-slate-500 max-w-md mx-auto">
+                There are currently no active CO₂ auctions matching your criteria. Check back shortly or post your custom requirement!
+              </p>
+              <Link
+                href="/buyer/requirements/new"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono transition-all"
+              >
+                + Post Buyer Requirement
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredOpps.map((opp) => {
+                const src = opp.source;
+                const companyName = opp.dealer_name || src?.company_name || "CarbonBridge Trading";
+                const location = src?.location || "Mumbai, Maharashtra";
+                const purity = src?.purity || 99.2;
+                const verification = src?.verification_status || "VERIFIED";
+                const isLive = opp.status === "LIVE";
+
+                return (
+                  <div
+                    key={opp.id}
+                    className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${
+                            isLive
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-amber-50 text-amber-800 border-amber-200"
+                          }`}>
+                            {opp.status} • {opp.bid_count} Bids
+                          </span>
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                            {verification}
+                          </span>
+                        </div>
+
+                        <span className="text-xs font-mono text-slate-500 font-semibold flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                          {isLive ? "LIVE AUCTION" : "UPCOMING"}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h2 className="text-lg font-bold font-mono text-slate-900">{opp.title}</h2>
+                        <p className="text-xs font-mono text-slate-600 mt-1 flex items-center gap-2">
+                          <span className="font-semibold text-slate-900">{companyName}</span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400" /> {location}</span>
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 font-mono text-xs py-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">CO₂ QUANTITY</span>
+                          <span className="font-bold text-slate-900">{opp.quantity} tonnes</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">PURITY</span>
+                          <span className="font-bold text-slate-900">{purity}%</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">STARTING PRICE</span>
+                          <span className="font-bold text-slate-700">₹{opp.starting_price.toLocaleString("en-IN")}/t</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">CURRENT HIGHEST</span>
+                          <span className="font-extrabold text-emerald-700">₹{opp.current_highest_bid.toLocaleString("en-IN")}/t</span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-600 leading-relaxed font-sans line-clamp-2">
+                        {opp.description}
+                      </p>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-slate-500">
+                        Increment: ₹{opp.minimum_bid_increment}/t
                       </span>
-                      <span className="text-xs font-mono text-slate-500 font-semibold flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-emerald-600" /> LIVE OPPORTUNITY
-                      </span>
+                      <Link
+                        href={`/marketplace/bidding/${opp.id}`}
+                        className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-mono text-xs font-bold text-white transition-all shadow-sm flex items-center gap-1.5"
+                      >
+                        <span>Place Bid</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
-
-                    <div>
-                      <h2 className="text-lg font-bold font-mono text-slate-900">{opp.title}</h2>
-                      <p className="text-xs font-mono text-slate-600 mt-1">{src?.company_name} — {src?.location}</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 font-mono text-xs py-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div>
-                        <span className="text-[10px] text-slate-500 block">CO₂ QUANTITY</span>
-                        <span className="font-bold text-slate-900">{opp.quantity} tonnes</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 block">PURITY</span>
-                        <span className="font-bold text-slate-900">{src?.purity || 99.2}%</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 block">STARTING PRICE</span>
-                        <span className="font-bold text-slate-700">₹{opp.starting_price.toLocaleString("en-IN")}/t</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 block">CURRENT HIGHEST</span>
-                        <span className="font-extrabold text-emerald-700">₹{opp.current_highest_bid.toLocaleString("en-IN")}/t</span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-600 leading-relaxed font-sans line-clamp-2">
-                      {opp.description}
-                    </p>
                   </div>
-
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-slate-500">
-                      Increment: ₹{opp.minimum_bid_increment}/t
-                    </span>
-                    <Link
-                      href={`/marketplace/bidding/${opp.id}`}
-                      className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-mono text-xs font-bold text-white transition-all shadow-sm flex items-center gap-1.5"
-                    >
-                      <span>Place Bid</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

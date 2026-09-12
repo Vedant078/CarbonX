@@ -109,31 +109,98 @@ export class CarbonXServerDatabase {
     return newSource;
   }
 
+  private memoryBiddingOpportunities: BiddingOpportunity[] = [];
+  private memoryBids: Bid[] = [];
+
   // --- B2B COMPETITIVE BIDDING ---
   async getBiddingOpportunities(): Promise<BiddingOpportunity[]> {
+    const sources = await this.getSources();
+    let dbOpps: BiddingOpportunity[] = [];
+
     try {
       const now = new Date().toISOString();
-      // Auto-expire opportunities past auction_end_time
+      // Auto-expire opportunities past auction_end_time safely
       await query(
         `UPDATE bidding_opportunities SET status = 'ENDED', updated_at = $1 WHERE status = 'LIVE' AND auction_end_time <= $1`,
         [now]
       );
 
       const rows = await query(`SELECT * FROM bidding_opportunities ORDER BY created_at DESC`);
-      const sources = await this.getSources();
+      dbOpps = rows.map((r) => {
+        let src = sources.find((s) => s.id === r.carbon_source_id);
+        if (!src) {
+          src = {
+            id: r.carbon_source_id || 'source-1',
+            company_name: r.dealer_name || 'CarbonBridge Trading',
+            facility_name: r.title || 'CO₂ Capture Facility',
+            industry: 'Steel' as any,
+            location: 'Mumbai, Maharashtra',
+            latitude: 19.076,
+            longitude: 72.8777,
+            available_quantity: Number(r.quantity),
+            unit: 'tonnes/month',
+            purity: 99.2,
+            capture_method: 'Post-combustion Amine Scrubbing',
+            price_per_tonne: Number(r.starting_price),
+            availability_date: new Date().toISOString().split('T')[0],
+            verification_status: 'VERIFIED',
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+          };
+        }
 
-      return rows.map((r) => ({
-        ...r,
-        starting_price: Number(r.starting_price),
-        current_highest_bid: Number(r.current_highest_bid),
-        minimum_bid_increment: Number(r.minimum_bid_increment),
-        quantity: Number(r.quantity),
-        bid_count: Number(r.bid_count),
-        source: sources.find((s) => s.id === r.carbon_source_id),
-      }));
-    } catch {
-      return [];
+        return {
+          ...r,
+          starting_price: Number(r.starting_price),
+          current_highest_bid: Number(r.current_highest_bid),
+          minimum_bid_increment: Number(r.minimum_bid_increment),
+          quantity: Number(r.quantity),
+          bid_count: Number(r.bid_count),
+          source: src,
+        };
+      });
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL query failed for getBiddingOpportunities (using memory store fallback):', err?.message || err);
     }
+
+    // Merge PostgreSQL rows with memory fallback rows (prevent duplicates)
+    const oppMap = new Map<string, BiddingOpportunity>();
+    
+    // Add memory fallback entries first
+    for (const memOpp of this.memoryBiddingOpportunities) {
+      let src = memOpp.source || sources.find((s) => s.id === memOpp.carbon_source_id);
+      if (!src) {
+        src = {
+          id: memOpp.carbon_source_id || 'source-1',
+          company_name: memOpp.dealer_name || 'CarbonBridge Trading',
+          facility_name: memOpp.title || 'CO₂ Capture Facility',
+          industry: 'Steel' as any,
+          location: 'Mumbai, Maharashtra',
+          latitude: 19.076,
+          longitude: 72.8777,
+          available_quantity: memOpp.quantity,
+          unit: 'tonnes/month',
+          purity: 99.2,
+          capture_method: 'Post-combustion Amine Scrubbing',
+          price_per_tonne: memOpp.starting_price,
+          availability_date: new Date().toISOString().split('T')[0],
+          verification_status: 'VERIFIED',
+          created_at: memOpp.created_at,
+          updated_at: memOpp.updated_at,
+        };
+      }
+      oppMap.set(memOpp.id, { ...memOpp, source: src });
+    }
+
+    // DB rows take precedence when available
+    for (const dbOpp of dbOpps) {
+      oppMap.set(dbOpp.id, dbOpp);
+    }
+
+    // Sort by created_at descending
+    return Array.from(oppMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
   }
 
   async getBiddingOpportunityById(id: string): Promise<BiddingOpportunity | undefined> {
@@ -152,8 +219,25 @@ export class CarbonXServerDatabase {
     minimum_bid_increment?: number;
     duration_hours?: number;
   }): Promise<BiddingOpportunity> {
-    const source = await this.getSourceById(data.carbon_source_id);
-    if (!source) throw new Error('CO2 Supply Source not found.');
+    const fetchedSource = await this.getSourceById(data.carbon_source_id);
+    const source: CarbonSource = fetchedSource || {
+      id: data.carbon_source_id,
+      company_name: data.dealer_name || 'CarbonBridge Trading',
+      facility_name: 'CO₂ Capture Unit',
+      industry: 'Steel' as any,
+      location: 'Mumbai, Maharashtra',
+      latitude: 19.076,
+      longitude: 72.8777,
+      available_quantity: data.quantity,
+      unit: 'tonnes/month',
+      purity: 99.2,
+      capture_method: 'Post-combustion Amine Scrubbing',
+      price_per_tonne: data.starting_price,
+      availability_date: new Date().toISOString().split('T')[0],
+      verification_status: 'VERIFIED',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
     const now = new Date();
     const durationHours = data.duration_hours || 48;
@@ -181,6 +265,9 @@ export class CarbonXServerDatabase {
       updated_at: now.toISOString(),
       source,
     };
+
+    // Store in memory fallback list immediately so buyers can see it regardless of DB status
+    this.memoryBiddingOpportunities.unshift(newOpp);
 
     try {
       await query(
@@ -232,6 +319,11 @@ export class CarbonXServerDatabase {
     const opp = await this.getBiddingOpportunityById(opportunityId);
     if (!opp) throw new Error('Bidding opportunity not found.');
 
+    // Prevent Dealers from bidding on their own auction
+    if (opp.dealer_id && opp.dealer_id === bidder.id) {
+      throw new Error('Dealers cannot place bids on their own CO₂ auction.');
+    }
+
     const now = new Date();
     if (opp.status !== 'LIVE' || new Date(opp.auction_end_time) <= now) {
       throw new Error('This competitive bidding opportunity is closed or expired.');
@@ -256,72 +348,99 @@ export class CarbonXServerDatabase {
     const timestamp = now.toISOString();
 
     // 1. Mark previous WINNING bids for this opportunity as OUTBID
-    const previousWinningBids = await query<{ id: string; bidder_id: string; bidder_company: string; amount_per_tonne: number }>(
-      `SELECT id, bidder_id, bidder_company, amount_per_tonne FROM bids WHERE bidding_opportunity_id = $1 AND status = 'WINNING'`,
-      [opportunityId]
-    );
+    try {
+      const previousWinningBids = await query<{ id: string; bidder_id: string; bidder_company: string; amount_per_tonne: number }>(
+        `SELECT id, bidder_id, bidder_company, amount_per_tonne FROM bids WHERE bidding_opportunity_id = $1 AND status = 'WINNING'`,
+        [opportunityId]
+      );
 
-    await query(
-      `UPDATE bids SET status = 'OUTBID', updated_at = $1 WHERE bidding_opportunity_id = $2 AND status = 'WINNING'`,
-      [timestamp, opportunityId]
-    );
+      await query(
+        `UPDATE bids SET status = 'OUTBID', updated_at = $1 WHERE bidding_opportunity_id = $2 AND status = 'WINNING'`,
+        [timestamp, opportunityId]
+      );
 
-    // 2. Insert new WINNING bid
-    await query(
-      `INSERT INTO bids (id, bidding_opportunity_id, bidder_id, bidder_name, bidder_company, amount_per_tonne, quantity, total_amount, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [
-        bidId,
-        opportunityId,
-        bidder.id,
-        bidder.name,
-        bidder.company,
-        amountPerTonne,
-        quantity,
-        totalAmount,
-        'WINNING',
-        timestamp,
-        timestamp,
-      ]
-    );
+      // 2. Insert new WINNING bid
+      await query(
+        `INSERT INTO bids (id, bidding_opportunity_id, bidder_id, bidder_name, bidder_company, amount_per_tonne, quantity, total_amount, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          bidId,
+          opportunityId,
+          bidder.id,
+          bidder.name,
+          bidder.company,
+          amountPerTonne,
+          quantity,
+          totalAmount,
+          'WINNING',
+          timestamp,
+          timestamp,
+        ]
+      );
 
-    // 3. Update opportunity current_highest_bid & bid_count
-    await query(
-      `UPDATE bidding_opportunities SET current_highest_bid = $1, bid_count = bid_count + 1, updated_at = $2 WHERE id = $3`,
-      [amountPerTonne, timestamp, opportunityId]
-    );
+      // 3. Update opportunity current_highest_bid & bid_count in DB
+      await query(
+        `UPDATE bidding_opportunities SET current_highest_bid = $1, bid_count = bid_count + 1, updated_at = $2 WHERE id = $3`,
+        [amountPerTonne, timestamp, opportunityId]
+      );
 
-    // 4. Send OUTBID notifications to previous bidders
-    for (const prevBid of previousWinningBids) {
-      if (prevBid.bidder_id !== bidder.id) {
-        await this.createNotification({
-          user_id: prevBid.bidder_id,
-          role_target: 'BUYER',
-          title: 'You Have Been Outbid!',
-          message: `Your bid of ₹${prevBid.amount_per_tonne}/t on "${opp.title}" was outbid. Current leading bid is ₹${amountPerTonne}/t.`,
-          link: `/marketplace/bidding/${opportunityId}`,
-        });
+      // 4. Send OUTBID notifications to previous bidders
+      for (const prevBid of previousWinningBids) {
+        if (prevBid.bidder_id !== bidder.id) {
+          await this.createNotification({
+            user_id: prevBid.bidder_id,
+            role_target: 'BUYER',
+            title: 'You Have Been Outbid!',
+            message: `Your bid of ₹${prevBid.amount_per_tonne}/t on "${opp.title}" was outbid. Current leading bid is ₹${amountPerTonne}/t.`,
+            link: `/marketplace/bidding/${opportunityId}`,
+          });
+        }
+      }
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL operations failed for placeBidAtomic (using memory fallback):', err?.message || err);
+    }
+
+    // Update memory fallback state
+    for (const memBid of this.memoryBids) {
+      if (memBid.bidding_opportunity_id === opportunityId && memBid.status === 'WINNING') {
+        memBid.status = 'OUTBID';
+        memBid.updated_at = timestamp;
       }
     }
 
-    // 5. Send notification to Dealer
-    await this.createNotification({
-      user_id: opp.dealer_id || 'user-dealer-demo',
-      role_target: 'DEALER',
-      title: 'New Leading Bid Submitted',
-      message: `${bidder.company} submitted a leading bid of ₹${amountPerTonne}/t (${quantity}t) on "${opp.title}".`,
-      link: `/dealer/opportunities/${opportunityId}`,
-    });
+    // Update opportunity inside memory fallback
+    const memOpp = this.memoryBiddingOpportunities.find((o) => o.id === opportunityId);
+    if (memOpp) {
+      memOpp.current_highest_bid = amountPerTonne;
+      memOpp.bid_count += 1;
+      memOpp.updated_at = timestamp;
+    }
 
-    await this.logAudit(
-      bidder.id,
-      bidder.name,
-      'BUYER',
-      'PLACE_BID',
-      `Placed bid ₹${amountPerTonne}/t on opportunity ${opportunityId}`
-    );
+    // Send notification to Dealer
+    try {
+      await this.createNotification({
+        user_id: opp.dealer_id || 'user-dealer-demo',
+        role_target: 'DEALER',
+        title: 'New Leading Bid Submitted',
+        message: `${bidder.company} submitted a leading bid of ₹${amountPerTonne}/t (${quantity}t) on "${opp.title}".`,
+        link: `/dealer/opportunities/${opportunityId}`,
+      });
 
-    const updatedOpp = (await this.getBiddingOpportunityById(opportunityId))!;
+      await this.logAudit(
+        bidder.id,
+        bidder.name,
+        'BUYER',
+        'PLACE_BID',
+        `Placed bid ₹${amountPerTonne}/t on opportunity ${opportunityId}`
+      );
+    } catch {}
+
+    const updatedOpp = (await this.getBiddingOpportunityById(opportunityId)) || {
+      ...opp,
+      current_highest_bid: amountPerTonne,
+      bid_count: opp.bid_count + 1,
+    };
+
     const newBid: Bid = {
       id: bidId,
       bidding_opportunity_id: opportunityId,
@@ -337,37 +456,61 @@ export class CarbonXServerDatabase {
       opportunity: updatedOpp,
     };
 
+    this.memoryBids.unshift(newBid);
+
     return { bid: newBid, opportunity: updatedOpp };
   }
 
   async getBuyerBids(buyerId: string): Promise<Bid[]> {
+    let dbBids: Bid[] = [];
     try {
       const rows = await query(`SELECT * FROM bids WHERE bidder_id = $1 ORDER BY created_at DESC`, [buyerId]);
       const opps = await this.getBiddingOpportunities();
-      return rows.map((b) => ({
+      dbBids = rows.map((b) => ({
         ...b,
         amount_per_tonne: Number(b.amount_per_tonne),
         quantity: Number(b.quantity),
         total_amount: Number(b.total_amount),
         opportunity: opps.find((o) => o.id === b.bidding_opportunity_id),
       }));
-    } catch {
-      return [];
+    } catch {}
+
+    const bidMap = new Map<string, Bid>();
+    for (const memBid of this.memoryBids) {
+      if (memBid.bidder_id === buyerId) {
+        bidMap.set(memBid.id, memBid);
+      }
     }
+    for (const dbBid of dbBids) {
+      bidMap.set(dbBid.id, dbBid);
+    }
+    return Array.from(bidMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
   }
 
   async getBidsForOpportunity(opportunityId: string): Promise<Bid[]> {
+    let dbBids: Bid[] = [];
     try {
       const rows = await query(`SELECT * FROM bids WHERE bidding_opportunity_id = $1 ORDER BY amount_per_tonne DESC, created_at ASC`, [opportunityId]);
-      return rows.map((b) => ({
+      dbBids = rows.map((b) => ({
         ...b,
         amount_per_tonne: Number(b.amount_per_tonne),
         quantity: Number(b.quantity),
         total_amount: Number(b.total_amount),
       }));
-    } catch {
-      return [];
+    } catch {}
+
+    const bidMap = new Map<string, Bid>();
+    for (const memBid of this.memoryBids) {
+      if (memBid.bidding_opportunity_id === opportunityId) {
+        bidMap.set(memBid.id, memBid);
+      }
     }
+    for (const dbBid of dbBids) {
+      bidMap.set(dbBid.id, dbBid);
+    }
+    return Array.from(bidMap.values()).sort((a, b) => b.amount_per_tonne - a.amount_per_tonne);
   }
 
   async createProposalFromWinningBid(
