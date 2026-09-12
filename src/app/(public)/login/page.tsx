@@ -36,27 +36,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col justify-center items-center px-4 py-12 font-sans">
-      <div className="max-w-md w-full space-y-8 bg-card/60 border border-border/80 p-8 rounded-2xl backdrop-blur-xl shadow-2xl">
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col justify-center items-center px-4 py-12 font-sans">
+      <div className="max-w-md w-full space-y-8 bg-white border border-slate-200/90 p-8 rounded-2xl shadow-xl">
         
         {/* Brand & Titles */}
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center font-mono font-bold text-slate-950 text-base shadow-lg mx-auto">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center font-mono font-bold text-white text-base shadow-md mx-auto">
             CX
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold font-mono tracking-tight text-foreground">
+            <h1 className="text-3xl font-bold font-mono tracking-tight text-slate-900">
               Welcome to CarbonX
             </h1>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
               Connect captured carbon with the industries that can put it to work.
             </p>
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-lg font-mono text-center">
+          <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-lg font-mono text-center font-semibold">
             {error}
           </div>
         )}
@@ -67,7 +67,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => loginWithGoogle()}
             disabled={isLoading}
-            className="w-full py-3 px-4 rounded-xl border border-border/80 bg-muted/30 hover:bg-muted/60 text-foreground font-mono text-sm font-semibold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-sm"
+            className="w-full py-3 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-mono text-sm font-semibold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -89,79 +89,85 @@ export default function LoginPage() {
             </svg>
             <span>Continue with Google</span>
           </button>
-          <p className="text-[10px] text-center text-muted-foreground font-mono">
+          <p className="text-[10px] text-center text-slate-500 font-mono font-medium">
             Secure authentication powered by OAuth
           </p>
         </div>
 
         {/* Divider */}
-        <div className="relative flex items-center justify-center border-t border-border/60 pt-4">
-          <span className="bg-card px-3 text-[10px] font-mono text-muted-foreground uppercase tracking-widest absolute">
+        <div className="relative flex items-center justify-center border-t border-slate-200 pt-4">
+          <span className="bg-white px-3 text-[10px] font-mono text-slate-500 font-bold uppercase tracking-widest absolute">
             EXPLORE DEMO WORKSPACE
           </span>
         </div>
 
         {/* 3 DEMO ACCOUNTS */}
         <div className="space-y-2.5 pt-2 font-mono">
+          {/* BUYER DEMO */}
           <button
             type="button"
             onClick={() => handleDemoLogin("buyer.demo@carbonx.demo")}
-            className="w-full py-2.5 px-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center justify-between transition-all group active:scale-95"
+            className="w-full py-2.5 px-4 rounded-xl border border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100/80 text-emerald-950 text-xs font-bold flex items-center justify-between transition-all group active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
           >
             <div className="flex items-center gap-2.5">
-              <ShoppingBag className="w-4 h-4 text-emerald-400" />
-              <span>Buyer Demo</span>
+              <ShoppingBag className="w-4 h-4 text-emerald-800" />
+              <span className="text-emerald-950 font-bold">Buyer Demo</span>
             </div>
-            <span className="text-[10px] text-emerald-500/80 group-hover:translate-x-0.5 transition-transform">
-              buyer.demo@carbonx.demo →
+            <span className="text-[10px] text-emerald-900 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+              <span>buyer.demo@carbonx.demo</span>
+              <span className="text-emerald-800 font-bold">→</span>
             </span>
           </button>
 
+          {/* DEALER DEMO */}
           <button
             type="button"
             onClick={() => handleDemoLogin("dealer.demo@carbonx.demo")}
-            className="w-full py-2.5 px-4 rounded-xl border border-indigo-500/30 bg-indigo-950/20 hover:bg-indigo-500/20 text-indigo-400 text-xs font-semibold flex items-center justify-between transition-all group active:scale-95"
+            className="w-full py-2.5 px-4 rounded-xl border border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100/80 text-indigo-950 text-xs font-bold flex items-center justify-between transition-all group active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
           >
             <div className="flex items-center gap-2.5">
-              <Briefcase className="w-4 h-4 text-indigo-400" />
-              <span>Dealer Demo</span>
+              <Briefcase className="w-4 h-4 text-indigo-800" />
+              <span className="text-indigo-950 font-bold">Dealer Demo</span>
             </div>
-            <span className="text-[10px] text-indigo-500/80 group-hover:translate-x-0.5 transition-transform">
-              dealer.demo@carbonx.demo →
+            <span className="text-[10px] text-indigo-900 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+              <span>dealer.demo@carbonx.demo</span>
+              <span className="text-indigo-800 font-bold">→</span>
             </span>
           </button>
 
+          {/* LOGISTICS DEMO */}
           <button
             type="button"
             onClick={() => handleDemoLogin("logistics.demo@carbonx.demo")}
-            className="w-full py-2.5 px-4 rounded-xl border border-cyan-500/30 bg-cyan-950/20 hover:bg-cyan-500/20 text-cyan-400 text-xs font-semibold flex items-center justify-between transition-all group active:scale-95"
+            className="w-full py-2.5 px-4 rounded-xl border border-cyan-200 bg-cyan-50/80 hover:bg-cyan-100/80 text-cyan-950 text-xs font-bold flex items-center justify-between transition-all group active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:ring-offset-2"
           >
             <div className="flex items-center gap-2.5">
-              <Truck className="w-4 h-4 text-cyan-400" />
-              <span>Logistics Demo</span>
+              <Truck className="w-4 h-4 text-cyan-800" />
+              <span className="text-cyan-950 font-bold">Logistics Demo</span>
             </div>
-            <span className="text-[10px] text-cyan-500/80 group-hover:translate-x-0.5 transition-transform">
-              logistics.demo@carbonx.demo →
+            <span className="text-[10px] text-cyan-900 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+              <span>logistics.demo@carbonx.demo</span>
+              <span className="text-cyan-800 font-bold">→</span>
             </span>
           </button>
         </div>
 
         {/* Email Login Form Fallback */}
-        <form onSubmit={handleSubmit} className="space-y-3 pt-2 border-t border-border/40 font-mono text-xs">
+        <form onSubmit={handleSubmit} className="space-y-3 pt-2 border-t border-slate-200 font-mono text-xs">
           <div>
-            <label className="block text-muted-foreground mb-1">Work Email</label>
+            <label className="block text-slate-800 font-bold mb-1">Work Email</label>
             <input
               type="email"
               required
               placeholder="name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-muted/20 border border-border/80 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-emerald-500"
+              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all"
             />
           </div>
           <button
             type="submit"
-            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white transition-all shadow-md active:scale-95"
+            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
           >
             Sign In with Email →
           </button>
