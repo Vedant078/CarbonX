@@ -49,6 +49,7 @@ export default function BuyerMarketplacePage() {
 
   const filteredOpps = useMemo(() => {
     return opportunities.filter((item) => {
+      if (item.status === "CANCELLED") return false;
       return (
         !search ||
         item.title.toLowerCase().includes(search.toLowerCase()) ||

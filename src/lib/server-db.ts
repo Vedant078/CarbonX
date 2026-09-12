@@ -310,6 +310,91 @@ export class CarbonXServerDatabase {
     return newOpp;
   }
 
+  async updateBiddingOpportunity(
+    id: string,
+    dealerId: string,
+    updates: {
+      title?: string;
+      description?: string;
+      quantity?: number;
+      starting_price?: number;
+      minimum_bid_increment?: number;
+      duration_hours?: number;
+      status?: BiddingOpportunityStatus;
+    }
+  ): Promise<BiddingOpportunity> {
+    const opp = await this.getBiddingOpportunityById(id);
+    if (!opp) throw new Error('Bidding opportunity not found.');
+    if (opp.dealer_id && opp.dealer_id !== dealerId) {
+      throw new Error('Unauthorized: You do not own this bidding opportunity.');
+    }
+
+    const now = new Date().toISOString();
+    const updatedTitle = updates.title !== undefined ? updates.title.trim() : opp.title;
+    const updatedDesc = updates.description !== undefined ? updates.description.trim() : opp.description;
+    const updatedQty = updates.quantity !== undefined ? Number(updates.quantity) : opp.quantity;
+    const updatedPrice = updates.starting_price !== undefined ? Number(updates.starting_price) : opp.starting_price;
+    const updatedIncrement = updates.minimum_bid_increment !== undefined ? Number(updates.minimum_bid_increment) : opp.minimum_bid_increment;
+    const updatedStatus = updates.status !== undefined ? updates.status : opp.status;
+    let updatedEndTime = opp.auction_end_time;
+
+    if (updates.duration_hours !== undefined) {
+      const dur = Number(updates.duration_hours);
+      if (!isNaN(dur) && dur > 0) {
+        updatedEndTime = new Date(new Date().getTime() + dur * 60 * 60 * 1000).toISOString();
+      }
+    }
+
+    const updatedOpp: BiddingOpportunity = {
+      ...opp,
+      title: updatedTitle,
+      description: updatedDesc,
+      quantity: updatedQty,
+      starting_price: updatedPrice,
+      minimum_bid_increment: updatedIncrement,
+      status: updatedStatus,
+      auction_end_time: updatedEndTime,
+      updated_at: now,
+    };
+
+    // Update memory fallback array
+    const memIdx = this.memoryBiddingOpportunities.findIndex((o) => o.id === id);
+    if (memIdx !== -1) {
+      this.memoryBiddingOpportunities[memIdx] = updatedOpp;
+    } else {
+      this.memoryBiddingOpportunities.unshift(updatedOpp);
+    }
+
+    // Update PostgreSQL
+    try {
+      await query(
+        `UPDATE bidding_opportunities 
+         SET title = $1, description = $2, quantity = $3, starting_price = $4, minimum_bid_increment = $5, status = $6, auction_end_time = $7, updated_at = $8 
+         WHERE id = $9 AND (dealer_id = $10 OR dealer_id IS NULL)`,
+        [
+          updatedTitle,
+          updatedDesc,
+          updatedQty,
+          updatedPrice,
+          updatedIncrement,
+          updatedStatus,
+          updatedEndTime,
+          now,
+          id,
+          dealerId,
+        ]
+      );
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL update failed for updateBiddingOpportunity (memory updated):', err?.message || err);
+    }
+
+    return updatedOpp;
+  }
+
+  async cancelBiddingOpportunity(id: string, dealerId: string): Promise<BiddingOpportunity> {
+    return this.updateBiddingOpportunity(id, dealerId, { status: 'CANCELLED' });
+  }
+
   async placeBidAtomic(
     opportunityId: string,
     bidder: UserProfile,
