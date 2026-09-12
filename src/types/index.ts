@@ -64,6 +64,50 @@ export interface CarbonSource {
 // Alias for backward compatibility if components reference CarbonListing
 export type CarbonListing = CarbonSource;
 
+// --- B2B COMPETITIVE BIDDING TYPES ---
+export type BiddingOpportunityStatus = 'UPCOMING' | 'LIVE' | 'ENDED' | 'CANCELLED' | 'AWARDED';
+export type BidStatus = 'ACTIVE' | 'WINNING' | 'OUTBID' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN' | 'LOST';
+
+export interface BiddingOpportunity {
+  id: string;
+  carbon_source_id: string;
+  dealer_id?: string;
+  dealer_name?: string;
+  title: string;
+  description: string;
+  quantity: number; // in tonnes
+  unit: string;
+  starting_price: number; // in INR ₹/tonne
+  current_highest_bid: number; // in INR ₹/tonne
+  minimum_bid_increment: number; // in INR ₹/tonne
+  bid_count: number;
+  winning_bid_id?: string;
+  source_company_name?: string;
+  source_location?: string;
+  auction_start_time: string;
+  auction_end_time: string;
+  status: BiddingOpportunityStatus;
+  created_at: string;
+  updated_at: string;
+  source?: CarbonSource;
+}
+
+export interface Bid {
+  id: string;
+  bidding_opportunity_id: string;
+  bidder_id: string;
+  bidder_name: string;
+  bidder_company: string;
+  amount_per_tonne: number; // in INR ₹/tonne
+  quantity: number; // in tonnes
+  total_amount: number; // amount_per_tonne * quantity
+  status: BidStatus;
+  created_at: string;
+  updated_at: string;
+  opportunity?: BiddingOpportunity;
+  title?: string;
+}
+
 export type ApplicationType =
   | 'Synthetic Fuel'
   | 'Construction'
@@ -130,6 +174,8 @@ export interface FacilitatedDeal {
   carbon_source_id: string;
   carbon_source_name: string;
   requirement_id?: string;
+  bidding_opportunity_id?: string;
+  bid_id?: string;
   quantity: number;
   price_per_tonne: number;
   total_carbon_value: number;
@@ -144,7 +190,6 @@ export interface FacilitatedDeal {
   requirement?: BuyerRequirement;
 }
 
-// Alias for backward compatibility
 export type Deal = FacilitatedDeal;
 
 export type ShipmentStatus =

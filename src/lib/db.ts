@@ -76,6 +76,46 @@ class CarbonXDatabase {
     return this.users;
   }
 
+  // --- B2B COMPETITIVE BIDDING METHODS ---
+  async getBiddingOpportunities() {
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/bidding/opportunities', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return data.opportunities || [];
+        }
+      } catch {}
+    }
+    return [];
+  }
+
+  async getBiddingOpportunityById(id: string) {
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch(`/api/bidding/opportunities/${id}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return data.opportunity || undefined;
+        }
+      } catch {}
+    }
+    return undefined;
+  }
+
+  async getBuyerBids(buyerId?: string) {
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/bidding/my-bids', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          return data.bids || [];
+        }
+      } catch {}
+    }
+    return [];
+  }
+
   // --- MARKETPLACE SOURCES ---
   async getSources(): Promise<CarbonSource[]> {
     return this.sources;

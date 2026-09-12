@@ -51,6 +51,40 @@ CREATE TABLE IF NOT EXISTS carbon_sources (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS bidding_opportunities (
+  id TEXT PRIMARY KEY,
+  carbon_source_id TEXT NOT NULL REFERENCES carbon_sources(id) ON DELETE CASCADE,
+  dealer_id TEXT,
+  dealer_name TEXT,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  quantity DOUBLE PRECISION NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'tonnes',
+  starting_price DOUBLE PRECISION NOT NULL,
+  current_highest_bid DOUBLE PRECISION NOT NULL,
+  minimum_bid_increment DOUBLE PRECISION NOT NULL DEFAULT 50,
+  bid_count INTEGER NOT NULL DEFAULT 0,
+  auction_start_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  auction_end_time TIMESTAMPTZ NOT NULL,
+  status TEXT NOT NULL DEFAULT 'LIVE',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bids (
+  id TEXT PRIMARY KEY,
+  bidding_opportunity_id TEXT NOT NULL REFERENCES bidding_opportunities(id) ON DELETE CASCADE,
+  bidder_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  bidder_name TEXT NOT NULL,
+  bidder_company TEXT NOT NULL,
+  amount_per_tonne DOUBLE PRECISION NOT NULL,
+  quantity DOUBLE PRECISION NOT NULL,
+  total_amount DOUBLE PRECISION NOT NULL,
+  status TEXT NOT NULL DEFAULT 'WINNING',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS buyer_requirements (
   id TEXT PRIMARY KEY,
   buyer_id TEXT NOT NULL,
@@ -78,6 +112,8 @@ CREATE TABLE IF NOT EXISTS facilitated_deals (
   carbon_source_id TEXT NOT NULL,
   carbon_source_name TEXT NOT NULL,
   requirement_id TEXT,
+  bidding_opportunity_id TEXT,
+  bid_id TEXT,
   quantity DOUBLE PRECISION NOT NULL,
   price_per_tonne DOUBLE PRECISION NOT NULL,
   total_carbon_value DOUBLE PRECISION NOT NULL,

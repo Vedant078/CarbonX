@@ -10,6 +10,10 @@ import {
   AppNotification,
   AuditLog,
   AnalyticsSummary,
+  BiddingOpportunity,
+  Bid,
+  BiddingOpportunityStatus,
+  BidStatus,
 } from '@/types';
 import { query, queryOne } from './postgres';
 import { calculateMatch } from './matching';
@@ -101,6 +105,344 @@ export class CarbonXServerDatabase {
       ]
     );
     return newSource;
+  }
+
+  // --- B2B COMPETITIVE BIDDING ---
+  async getBiddingOpportunities(): Promise<BiddingOpportunity[]> {
+    try {
+      const now = new Date().toISOString();
+      // Auto-expire opportunities past auction_end_time
+      await query(
+        `UPDATE bidding_opportunities SET status = 'ENDED', updated_at = $1 WHERE status = 'LIVE' AND auction_end_time <= $1`,
+        [now]
+      );
+
+      const rows = await query(`SELECT * FROM bidding_opportunities ORDER BY created_at DESC`);
+      const sources = await this.getSources();
+
+      return rows.map((r) => ({
+        ...r,
+        starting_price: Number(r.starting_price),
+        current_highest_bid: Number(r.current_highest_bid),
+        minimum_bid_increment: Number(r.minimum_bid_increment),
+        quantity: Number(r.quantity),
+        bid_count: Number(r.bid_count),
+        source: sources.find((s) => s.id === r.carbon_source_id),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async getBiddingOpportunityById(id: string): Promise<BiddingOpportunity | undefined> {
+    const opps = await this.getBiddingOpportunities();
+    return opps.find((o) => o.id === id);
+  }
+
+  async createBiddingOpportunity(data: {
+    carbon_source_id: string;
+    dealer_id?: string;
+    dealer_name?: string;
+    title?: string;
+    description?: string;
+    quantity: number;
+    starting_price: number;
+    minimum_bid_increment?: number;
+    duration_hours?: number;
+  }): Promise<BiddingOpportunity> {
+    const source = await this.getSourceById(data.carbon_source_id);
+    if (!source) throw new Error('CO2 Supply Source not found.');
+
+    const now = new Date();
+    const durationHours = data.duration_hours || 48;
+    const endTime = new Date(now.getTime() + durationHours * 60 * 60 * 1000).toISOString();
+    const oppId = `opp-${Date.now()}`;
+    const increment = data.minimum_bid_increment || 50;
+
+    const newOpp: BiddingOpportunity = {
+      id: oppId,
+      carbon_source_id: source.id,
+      dealer_id: data.dealer_id || 'user-dealer-demo',
+      dealer_name: data.dealer_name || 'CarbonBridge Trading',
+      title: data.title || `${source.company_name} — ${data.quantity}t ${source.industry} CO₂ Supply Opportunity`,
+      description: data.description || `Competitive bidding for ${data.quantity} tonnes/month ${source.purity}% purity CO₂ captured in ${source.location}.`,
+      quantity: Number(data.quantity),
+      unit: 'tonnes',
+      starting_price: Number(data.starting_price),
+      current_highest_bid: Number(data.starting_price),
+      minimum_bid_increment: Number(increment),
+      bid_count: 0,
+      auction_start_time: now.toISOString(),
+      auction_end_time: endTime,
+      status: 'LIVE',
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+      source,
+    };
+
+    await query(
+      `INSERT INTO bidding_opportunities (id, carbon_source_id, dealer_id, dealer_name, title, description, quantity, unit, starting_price, current_highest_bid, minimum_bid_increment, bid_count, auction_start_time, auction_end_time, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+      [
+        newOpp.id,
+        newOpp.carbon_source_id,
+        newOpp.dealer_id,
+        newOpp.dealer_name,
+        newOpp.title,
+        newOpp.description,
+        newOpp.quantity,
+        newOpp.unit,
+        newOpp.starting_price,
+        newOpp.current_highest_bid,
+        newOpp.minimum_bid_increment,
+        0,
+        newOpp.auction_start_time,
+        newOpp.auction_end_time,
+        newOpp.status,
+        newOpp.created_at,
+        newOpp.updated_at,
+      ]
+    );
+
+    await this.logAudit(
+      data.dealer_id || 'user-dealer-demo',
+      data.dealer_name || 'CarbonBridge Trading',
+      'DEALER',
+      'CREATE_BIDDING_OPPORTUNITY',
+      `Published bidding opportunity ${newOpp.id} for ${source.company_name}`
+    );
+
+    return newOpp;
+  }
+
+  async placeBidAtomic(
+    opportunityId: string,
+    bidder: UserProfile,
+    amountPerTonne: number,
+    quantity: number
+  ): Promise<{ bid: Bid; opportunity: BiddingOpportunity }> {
+    const opp = await this.getBiddingOpportunityById(opportunityId);
+    if (!opp) throw new Error('Bidding opportunity not found.');
+
+    const now = new Date();
+    if (opp.status !== 'LIVE' || new Date(opp.auction_end_time) <= now) {
+      throw new Error('This competitive bidding opportunity is closed or expired.');
+    }
+
+    // Minimum required bid calculation
+    const minRequired =
+      opp.bid_count === 0
+        ? opp.starting_price
+        : opp.current_highest_bid + opp.minimum_bid_increment;
+
+    if (amountPerTonne < minRequired) {
+      throw new Error(`Your bid must be at least ₹${minRequired.toLocaleString('en-IN')} per tonne.`);
+    }
+
+    if (quantity > opp.quantity) {
+      throw new Error(`Requested quantity (${quantity}t) exceeds opportunity quantity (${opp.quantity}t).`);
+    }
+
+    const totalAmount = amountPerTonne * quantity;
+    const bidId = `bid-${Date.now()}`;
+    const timestamp = now.toISOString();
+
+    // 1. Mark previous WINNING bids for this opportunity as OUTBID
+    const previousWinningBids = await query<{ id: string; bidder_id: string; bidder_company: string; amount_per_tonne: number }>(
+      `SELECT id, bidder_id, bidder_company, amount_per_tonne FROM bids WHERE bidding_opportunity_id = $1 AND status = 'WINNING'`,
+      [opportunityId]
+    );
+
+    await query(
+      `UPDATE bids SET status = 'OUTBID', updated_at = $1 WHERE bidding_opportunity_id = $2 AND status = 'WINNING'`,
+      [timestamp, opportunityId]
+    );
+
+    // 2. Insert new WINNING bid
+    await query(
+      `INSERT INTO bids (id, bidding_opportunity_id, bidder_id, bidder_name, bidder_company, amount_per_tonne, quantity, total_amount, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [
+        bidId,
+        opportunityId,
+        bidder.id,
+        bidder.name,
+        bidder.company,
+        amountPerTonne,
+        quantity,
+        totalAmount,
+        'WINNING',
+        timestamp,
+        timestamp,
+      ]
+    );
+
+    // 3. Update opportunity current_highest_bid & bid_count
+    await query(
+      `UPDATE bidding_opportunities SET current_highest_bid = $1, bid_count = bid_count + 1, updated_at = $2 WHERE id = $3`,
+      [amountPerTonne, timestamp, opportunityId]
+    );
+
+    // 4. Send OUTBID notifications to previous bidders
+    for (const prevBid of previousWinningBids) {
+      if (prevBid.bidder_id !== bidder.id) {
+        await this.createNotification({
+          user_id: prevBid.bidder_id,
+          role_target: 'BUYER',
+          title: 'You Have Been Outbid!',
+          message: `Your bid of ₹${prevBid.amount_per_tonne}/t on "${opp.title}" was outbid. Current leading bid is ₹${amountPerTonne}/t.`,
+          link: `/marketplace/bidding/${opportunityId}`,
+        });
+      }
+    }
+
+    // 5. Send notification to Dealer
+    await this.createNotification({
+      user_id: opp.dealer_id || 'user-dealer-demo',
+      role_target: 'DEALER',
+      title: 'New Leading Bid Submitted',
+      message: `${bidder.company} submitted a leading bid of ₹${amountPerTonne}/t (${quantity}t) on "${opp.title}".`,
+      link: `/dealer/opportunities/${opportunityId}`,
+    });
+
+    await this.logAudit(
+      bidder.id,
+      bidder.name,
+      'BUYER',
+      'PLACE_BID',
+      `Placed bid ₹${amountPerTonne}/t on opportunity ${opportunityId}`
+    );
+
+    const updatedOpp = (await this.getBiddingOpportunityById(opportunityId))!;
+    const newBid: Bid = {
+      id: bidId,
+      bidding_opportunity_id: opportunityId,
+      bidder_id: bidder.id,
+      bidder_name: bidder.name,
+      bidder_company: bidder.company,
+      amount_per_tonne: amountPerTonne,
+      quantity,
+      total_amount: totalAmount,
+      status: 'WINNING',
+      created_at: timestamp,
+      updated_at: timestamp,
+      opportunity: updatedOpp,
+    };
+
+    return { bid: newBid, opportunity: updatedOpp };
+  }
+
+  async getBuyerBids(buyerId: string): Promise<Bid[]> {
+    try {
+      const rows = await query(`SELECT * FROM bids WHERE bidder_id = $1 ORDER BY created_at DESC`, [buyerId]);
+      const opps = await this.getBiddingOpportunities();
+      return rows.map((b) => ({
+        ...b,
+        amount_per_tonne: Number(b.amount_per_tonne),
+        quantity: Number(b.quantity),
+        total_amount: Number(b.total_amount),
+        opportunity: opps.find((o) => o.id === b.bidding_opportunity_id),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async getBidsForOpportunity(opportunityId: string): Promise<Bid[]> {
+    try {
+      const rows = await query(`SELECT * FROM bids WHERE bidding_opportunity_id = $1 ORDER BY amount_per_tonne DESC, created_at ASC`, [opportunityId]);
+      return rows.map((b) => ({
+        ...b,
+        amount_per_tonne: Number(b.amount_per_tonne),
+        quantity: Number(b.quantity),
+        total_amount: Number(b.total_amount),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async createProposalFromWinningBid(
+    opportunityId: string,
+    bidId: string,
+    dealer: UserProfile
+  ): Promise<FacilitatedDeal> {
+    const opp = await this.getBiddingOpportunityById(opportunityId);
+    if (!opp) throw new Error('Opportunity not found');
+
+    const bid = await queryOne<Bid>(`SELECT * FROM bids WHERE id = $1`, [bidId]);
+    if (!bid) throw new Error('Winning bid not found');
+
+    const source = await this.getSourceById(opp.carbon_source_id);
+    const carbonVal = bid.quantity * bid.amount_per_tonne * 3;
+    const logEst = generateLogisticsEstimate(source ? source.location : 'Mumbai, MH', 'Pune, MH', bid.quantity);
+
+    const dealId = `deal-cx-${Math.floor(1000 + Math.random() * 9000)}`;
+    const now = new Date().toISOString();
+
+    const deal: FacilitatedDeal = {
+      id: dealId,
+      dealer_id: dealer.id,
+      dealer_name: dealer.company || dealer.name,
+      buyer_id: bid.bidder_id,
+      buyer_name: bid.bidder_company || bid.bidder_name,
+      carbon_source_id: opp.carbon_source_id,
+      carbon_source_name: source ? source.company_name : 'Mumbai Steel Works',
+      bidding_opportunity_id: opp.id,
+      bid_id: bid.id,
+      quantity: bid.quantity,
+      price_per_tonne: bid.amount_per_tonne,
+      total_carbon_value: carbonVal,
+      logistics_cost: logEst.estimatedCost,
+      total_value: carbonVal + logEst.estimatedCost,
+      match_score: 98,
+      commission: Math.round(carbonVal * 0.05),
+      status: 'PROPOSED',
+      created_at: now,
+      updated_at: now,
+    };
+
+    await query(
+      `INSERT INTO facilitated_deals (id, dealer_id, dealer_name, buyer_id, buyer_name, carbon_source_id, carbon_source_name, bidding_opportunity_id, bid_id, quantity, price_per_tonne, total_carbon_value, logistics_cost, total_value, match_score, commission, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+      [
+        deal.id,
+        deal.dealer_id,
+        deal.dealer_name,
+        deal.buyer_id,
+        deal.buyer_name,
+        deal.carbon_source_id,
+        deal.carbon_source_name,
+        deal.bidding_opportunity_id,
+        deal.bid_id,
+        deal.quantity,
+        deal.price_per_tonne,
+        deal.total_carbon_value,
+        deal.logistics_cost,
+        deal.total_value,
+        deal.match_score,
+        deal.commission,
+        deal.status,
+        now,
+        now,
+      ]
+    );
+
+    // Update bidding opportunity status to AWARDED
+    await query(`UPDATE bidding_opportunities SET status = 'AWARDED', updated_at = $1 WHERE id = $2`, [now, opportunityId]);
+
+    // Notify Buyer
+    await this.createNotification({
+      user_id: bid.bidder_id,
+      role_target: 'BUYER',
+      title: 'Commercial Proposal Generated for Your Winning Bid!',
+      message: `${dealer.company} issued proposal ${deal.id} based on your winning bid of ₹${bid.amount_per_tonne}/t.`,
+      link: '/buyer/proposals',
+    });
+
+    await this.logAudit(dealer.id, dealer.name, 'DEALER', 'CREATE_PROPOSAL_FROM_BID', `Created proposal for deal ${dealId} from bid ${bidId}`);
+
+    return deal;
   }
 
   // --- BUYER REQUIREMENTS ---
@@ -237,7 +579,7 @@ export class CarbonXServerDatabase {
     const newDeal: FacilitatedDeal = {
       id: dealId,
       dealer_id: 'user-dealer-demo',
-      dealer_name: 'CarbonBridge Brokers',
+      dealer_name: 'CarbonBridge Trading',
       buyer_id: requestData.buyer_id,
       buyer_name: requestData.buyer_name,
       carbon_source_id: requestData.carbon_source_id,
@@ -421,6 +763,11 @@ export class CarbonXServerDatabase {
     await query(`UPDATE facilitated_deals SET status = 'CONFIRMED', updated_at = $1 WHERE id = $2`, [now, dealId]);
     const updatedDeal = await this.getDealById(dealId);
     if (!updatedDeal) throw new Error('Deal not found');
+
+    // Update corresponding bid to ACCEPTED if bid exists
+    if (updatedDeal.bid_id) {
+      await query(`UPDATE bids SET status = 'ACCEPTED', updated_at = $1 WHERE id = $2`, [now, updatedDeal.bid_id]);
+    }
 
     const shipments = await this.getShipments();
     let shipment = shipments.find((s) => s.deal_id === dealId);

@@ -24,11 +24,13 @@ import {
   BuyerRequirement, 
   MatchRecord, 
   FacilitatedDeal, 
-  LogisticsShipment 
+  LogisticsShipment,
+  Bid 
 } from "@/types";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MatchScoreBadge } from "@/components/ui/match-score-badge";
+import { Gavel, AlertTriangle } from "lucide-react";
 
 export default function BuyerDashboardPage() {
   const { user } = useAuth();
@@ -37,6 +39,7 @@ export default function BuyerDashboardPage() {
   const [deals, setDeals] = useState<FacilitatedDeal[]>([]);
   const [shipments, setShipments] = useState<LogisticsShipment[]>([]);
   const [requirements, setRequirements] = useState<BuyerRequirement[]>([]);
+  const [bids, setBids] = useState<Bid[]>([]);
 
   useEffect(() => {
     async function loadBuyerData() {
@@ -54,6 +57,13 @@ export default function BuyerDashboardPage() {
         setDeals(dealsData.filter((d: FacilitatedDeal) => d.buyer_id === user?.id || true));
         setShipments(shipmentsData);
         setRequirements(reqsData.filter((r: any) => r.buyer_id === user?.id || true));
+
+        // Fetch my bids
+        const res = await fetch("/api/bidding/my-bids");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.bids) setBids(data.bids);
+        }
       } catch (err) {
         console.error("Error loading buyer dashboard", err);
       }
@@ -110,11 +120,13 @@ export default function BuyerDashboardPage() {
 
         <div className="bg-card/40 border border-border/60 rounded-xl p-4 hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-medium font-mono uppercase tracking-wider">POTENTIAL MATCHES</span>
-            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-medium font-mono uppercase tracking-wider">ACTIVE BIDS</span>
+            <Gavel className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl font-bold text-foreground font-mono">8</div>
-          <div className="text-xs text-emerald-400 mt-1 font-mono">Top: 94% Match</div>
+          <div className="text-2xl font-bold text-foreground font-mono">{bids.length}</div>
+          <div className="text-xs text-emerald-400 mt-1 font-mono">
+            {bids.filter(b => b.status === 'WINNING').length} Winning
+          </div>
         </div>
 
         <div className="bg-card/40 border border-border/60 rounded-xl p-4 hover:border-emerald-500/40 transition-all">
@@ -144,6 +156,82 @@ export default function BuyerDashboardPage() {
           <div className="text-xs text-emerald-400 mt-1 font-mono">vs standard market</div>
         </div>
       </div>
+
+      {/* Section — Active Bids Summary */}
+      {bids.length > 0 && (
+        <div className="bg-card/40 border border-border/80 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <h2 className="text-base font-bold font-mono text-foreground flex items-center gap-2">
+              <Gavel className="w-5 h-5 text-amber-400" />
+              MY COMPETITIVE BIDS ({bids.length})
+            </h2>
+            <Link href="/buyer/marketplace" className="text-xs text-amber-400 font-mono hover:underline">
+              Browse Bidding Auctions →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {bids.map((bid) => (
+              <div 
+                key={bid.id} 
+                className={`p-4 rounded-xl border transition-all ${
+                  bid.status === 'WINNING' 
+                    ? 'bg-emerald-950/10 border-emerald-500/30' 
+                    : 'bg-amber-950/10 border-amber-500/30'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block">OPPORTUNITY #{bid.bidding_opportunity_id}</span>
+                    <h3 className="font-bold text-foreground font-mono text-sm mt-0.5">
+                      {bid.title || `CO₂ Supply Auction`}
+                    </h3>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold font-mono flex items-center gap-1 ${
+                    bid.status === 'WINNING'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                  }`}>
+                    {bid.status === 'WINNING' ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                        HIGHEST BIDDER
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-3 h-3 text-amber-400" />
+                        OUTBID
+                      </>
+                    )}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border/30 text-xs font-mono">
+                  <div>
+                    <span className="text-muted-foreground text-[10px] block">MY BID RATE</span>
+                    <span className="font-bold text-foreground text-sm">₹{bid.amount_per_tonne.toLocaleString()} / tonne</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-[10px] block">TOTAL VALUE ({bid.quantity} t)</span>
+                    <span className="font-bold text-emerald-400 text-sm">₹{bid.total_amount.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between pt-2">
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    Placed: {new Date(bid.created_at).toLocaleDateString()}
+                  </span>
+                  <Link href={`/marketplace/bidding/${bid.bidding_opportunity_id}`}>
+                    <Button size="sm" className="h-7 text-xs font-mono bg-amber-600 hover:bg-amber-500 text-white">
+                      {bid.status === 'OUTBID' ? 'Increase Bid →' : 'View Bidding Room →'}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Section — Recommended CO₂ Supply */}
       <div className="space-y-4">
