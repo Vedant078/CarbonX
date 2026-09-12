@@ -15,6 +15,8 @@
   --color-secondary-text: #475569;
   --color-warning: #d97706;
   --color-danger: #dc2626;
+  --card: #ffffff;
+  --color-card: #ffffff;
 }
 
 body {

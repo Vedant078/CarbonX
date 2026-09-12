@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Bell, Menu, Sparkles, User, LogOut, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
@@ -15,6 +16,46 @@ export function AppHeader({ onOpenMobileMenu }: AppHeaderProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updateDropdownCoords = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownCoords({
+        top: rect.bottom + 8,
+        right: Math.max(16, window.innerWidth - rect.right),
+      });
+    }
+  };
+
+  const toggleDropdown = () => {
+    if (!userDropdownOpen) {
+      updateDropdownCoords();
+    }
+    setUserDropdownOpen(!userDropdownOpen);
+  };
+
+  useEffect(() => {
+    if (!userDropdownOpen) return;
+
+    updateDropdownCoords();
+    const handleScrollOrResize = () => updateDropdownCoords();
+
+    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+
+    return () => {
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+    };
+  }, [userDropdownOpen]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +77,7 @@ export function AppHeader({ onOpenMobileMenu }: AppHeaderProps) {
   };
 
   return (
-    <header className="h-16 bg-card border-b border-border/80 px-4 sm:px-6 flex items-center justify-between gap-4 sticky top-0 z-30 shadow-xs font-sans">
+    <header className="h-16 bg-white border-b border-border/80 px-4 sm:px-6 flex items-center justify-between gap-4 sticky top-0 z-30 shadow-xs font-sans">
       <div className="flex items-center gap-3 flex-1 max-w-xl">
         <button
           onClick={onOpenMobileMenu}
@@ -70,9 +111,10 @@ export function AppHeader({ onOpenMobileMenu }: AppHeaderProps) {
       <div className="flex items-center gap-4">
         {/* User Identity & Role Badge */}
         {user && (
-          <div className="relative">
+          <div>
             <button
-              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              ref={buttonRef}
+              onClick={toggleDropdown}
               className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-muted/30 transition-all cursor-pointer border border-transparent hover:border-border/60"
             >
               <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold flex items-center justify-center text-xs font-mono">
@@ -87,35 +129,50 @@ export function AppHeader({ onOpenMobileMenu }: AppHeaderProps) {
               <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
             </button>
 
-            {/* User Dropdown Menu */}
-            {userDropdownOpen && (
-              <div
-                className="absolute right-0 mt-2 w-48 bg-card border border-border/80 rounded-xl shadow-2xl p-1.5 z-50 font-mono text-xs space-y-0.5 animate-in fade-in duration-150"
-                onClick={() => setUserDropdownOpen(false)}
-              >
-                <Link
-                  href="/settings"
-                  className="flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded-lg transition-colors"
+            {/* Portal-rendered User Dropdown Menu */}
+            {mounted && userDropdownOpen && createPortal(
+              <>
+                {/* Transparent backdrop layer to close on click outside & block underneath pointer interactions */}
+                <div
+                  className="fixed inset-0 z-[9998] cursor-default bg-transparent"
+                  onClick={() => setUserDropdownOpen(false)}
+                />
+                
+                {/* Dropdown Menu rendered at document.body level */}
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: `${dropdownCoords.top}px`,
+                    right: `${dropdownCoords.right}px`,
+                  }}
+                  className="w-48 bg-white border border-slate-200/90 rounded-xl shadow-2xl p-1.5 z-[9999] font-mono text-xs space-y-0.5 animate-in fade-in duration-150 text-slate-900 opacity-100"
+                  onClick={() => setUserDropdownOpen(false)}
                 >
-                  <User className="w-4 h-4" />
-                  <span>Profile</span>
-                </Link>
-                <Link
-                  href="/settings"
-                  className="flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded-lg transition-colors"
-                >
-                  <SettingsIcon className="w-4 h-4" />
-                  <span>Settings</span>
-                </Link>
-                <div className="border-t border-border/40 my-1" />
-                <button
-                  onClick={logout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-left font-semibold"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
-              </div>
+                  <Link
+                    href="/settings"
+                    className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors font-medium"
+                  >
+                    <User className="w-4 h-4 text-slate-500" />
+                    <span>Profile</span>
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors font-medium"
+                  >
+                    <SettingsIcon className="w-4 h-4 text-slate-500" />
+                    <span>Settings</span>
+                  </Link>
+                  <div className="border-t border-slate-200 my-1" />
+                  <button
+                    onClick={logout}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-left font-semibold cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-red-600" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              </>,
+              document.body
             )}
           </div>
         )}
