@@ -48,7 +48,7 @@ export const INITIAL_USERS: UserProfile[] = [
     name: 'Kabir Rao',
     email: 'logistics.demo@carbonx.demo',
     company: 'BlueRoute Logistics',
-    role: 'LOGISTICS_PROVIDER',
+    role: 'LOGISTICS',
     location: 'Navi Mumbai, Maharashtra',
     latitude: 19.033,
     longitude: 73.0297,
@@ -293,7 +293,7 @@ export const INITIAL_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'notif-3',
     user_id: 'user-logistics-demo',
-    role_target: 'LOGISTICS_PROVIDER',
+    role_target: 'LOGISTICS',
     title: 'New Shipment Opportunity',
     message: 'Shipment #CX-2048 (Mumbai → Pune, 300t CO₂) is available for acceptance.',
     link: '/dashboard/logistics',

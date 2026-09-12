@@ -105,5 +105,5 @@ export async function requireDealer(req: NextRequest): Promise<AuthResult> {
 }
 
 export async function requireLogisticsProvider(req: NextRequest): Promise<AuthResult> {
-  return requireRole(req, ['LOGISTICS_PROVIDER']);
+  return requireRole(req, ['LOGISTICS']);
 }

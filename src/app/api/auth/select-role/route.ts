@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const upperRole = String(role).toUpperCase();
     if (upperRole === 'BUYER') normalizedRole = 'BUYER';
     else if (upperRole === 'DEALER') normalizedRole = 'DEALER';
-    else if (upperRole === 'LOGISTICS' || upperRole === 'LOGISTICS_PROVIDER') normalizedRole = 'LOGISTICS_PROVIDER';
+    else if (upperRole === 'LOGISTICS' || upperRole === 'LOGISTICS_PROVIDER') normalizedRole = 'LOGISTICS';
     else {
       return NextResponse.json(
         { error: 'INVALID_ROLE', message: 'Role must be Buyer, Dealer, or Logistics.' },
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 
     let targetRoute = '/buyer/dashboard';
     if (normalizedRole === 'DEALER') targetRoute = '/dealer/dashboard';
-    else if (normalizedRole === 'LOGISTICS_PROVIDER') targetRoute = '/logistics/dashboard';
+    else if (normalizedRole === 'LOGISTICS') targetRoute = '/logistics/dashboard';
 
     return NextResponse.json({
       success: true,

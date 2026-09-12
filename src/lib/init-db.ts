@@ -1,306 +1,266 @@
-import fs from 'fs';
-import path from 'path';
+import { pool } from './postgres';
 import bcrypt from 'bcryptjs';
-import { pool, query } from './postgres';
-import {
-  INITIAL_USERS,
-  INITIAL_SOURCES,
-  INITIAL_REQUIREMENTS,
-  INITIAL_DEALS,
-  INITIAL_SHIPMENTS,
-  INITIAL_NOTIFICATIONS,
-  INITIAL_AUDIT_LOGS,
-} from './seed-data';
 
-export async function initializeDatabase() {
-  console.log('Initializing CarbonX PostgreSQL Database...');
+export async function initDatabase(): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    // 1. Create Tables
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
 
-  // 1. Read and run schema.sql
-  const schemaPath = path.join(process.cwd(), 'src/lib/schema.sql');
-  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+      CREATE TABLE IF NOT EXISTS profiles (
+        id TEXT PRIMARY KEY,
+        user_id TEXT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        company TEXT NOT NULL,
+        role TEXT,
+        location TEXT,
+        avatar_url TEXT,
+        buyer_profile JSONB,
+        dealer_profile JSONB,
+        logistics_profile JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
 
-  await pool.query(schemaSql);
-  console.log('Schema tables verified/created successfully.');
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token TEXT UNIQUE NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
 
-  // 2. Seed default users & demo accounts with hashed passwords if empty
-  const defaultPasswordHash = await bcrypt.hash('Password123!', 10);
+      CREATE TABLE IF NOT EXISTS carbon_sources (
+        id TEXT PRIMARY KEY,
+        company_name TEXT NOT NULL,
+        facility_name TEXT NOT NULL,
+        industry TEXT NOT NULL,
+        location TEXT NOT NULL,
+        latitude DOUBLE PRECISION NOT NULL DEFAULT 19.0760,
+        longitude DOUBLE PRECISION NOT NULL DEFAULT 72.8777,
+        available_quantity DOUBLE PRECISION NOT NULL,
+        unit TEXT NOT NULL DEFAULT 'tonnes/month',
+        purity DOUBLE PRECISION NOT NULL,
+        capture_method TEXT NOT NULL,
+        price_per_tonne DOUBLE PRECISION NOT NULL,
+        availability_date TEXT NOT NULL,
+        verification_status TEXT NOT NULL DEFAULT 'VERIFIED',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
 
-  for (const user of INITIAL_USERS) {
-    const existingUser = await query(`SELECT id FROM users WHERE email = $1`, [user.email.toLowerCase()]);
-    if (existingUser.length === 0) {
-      await query(
+      CREATE TABLE IF NOT EXISTS bidding_opportunities (
+        id TEXT PRIMARY KEY,
+        carbon_source_id TEXT NOT NULL REFERENCES carbon_sources(id) ON DELETE CASCADE,
+        dealer_id TEXT,
+        dealer_name TEXT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        quantity DOUBLE PRECISION NOT NULL,
+        unit TEXT NOT NULL DEFAULT 'tonnes',
+        starting_price DOUBLE PRECISION NOT NULL,
+        current_highest_bid DOUBLE PRECISION NOT NULL,
+        minimum_bid_increment DOUBLE PRECISION NOT NULL DEFAULT 50,
+        bid_count INTEGER NOT NULL DEFAULT 0,
+        auction_start_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        auction_end_time TIMESTAMPTZ NOT NULL,
+        status TEXT NOT NULL DEFAULT 'LIVE',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS bids (
+        id TEXT PRIMARY KEY,
+        bidding_opportunity_id TEXT NOT NULL REFERENCES bidding_opportunities(id) ON DELETE CASCADE,
+        bidder_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        bidder_name TEXT NOT NULL,
+        bidder_company TEXT NOT NULL,
+        amount_per_tonne DOUBLE PRECISION NOT NULL,
+        quantity DOUBLE PRECISION NOT NULL,
+        total_amount DOUBLE PRECISION NOT NULL,
+        status TEXT NOT NULL DEFAULT 'WINNING',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS buyer_requirements (
+        id TEXT PRIMARY KEY,
+        buyer_id TEXT NOT NULL,
+        buyer_name TEXT NOT NULL,
+        title TEXT NOT NULL,
+        application TEXT NOT NULL,
+        required_quantity DOUBLE PRECISION NOT NULL,
+        required_purity DOUBLE PRECISION NOT NULL,
+        location TEXT NOT NULL,
+        latitude DOUBLE PRECISION NOT NULL DEFAULT 19.0760,
+        longitude DOUBLE PRECISION NOT NULL DEFAULT 72.8777,
+        max_distance DOUBLE PRECISION NOT NULL DEFAULT 500,
+        max_price DOUBLE PRECISION NOT NULL DEFAULT 6000,
+        frequency TEXT NOT NULL DEFAULT 'Monthly Spot Agreement',
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS facilitated_deals (
+        id TEXT PRIMARY KEY,
+        dealer_id TEXT,
+        dealer_name TEXT,
+        buyer_id TEXT NOT NULL,
+        buyer_name TEXT NOT NULL,
+        carbon_source_id TEXT NOT NULL,
+        carbon_source_name TEXT NOT NULL,
+        requirement_id TEXT,
+        bidding_opportunity_id TEXT,
+        bid_id TEXT,
+        quantity DOUBLE PRECISION NOT NULL,
+        price_per_tonne DOUBLE PRECISION NOT NULL,
+        total_carbon_value DOUBLE PRECISION NOT NULL,
+        logistics_cost DOUBLE PRECISION NOT NULL,
+        total_value DOUBLE PRECISION NOT NULL,
+        match_score DOUBLE PRECISION NOT NULL,
+        commission DOUBLE PRECISION NOT NULL,
+        status TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS logistics_shipments (
+        id TEXT PRIMARY KEY,
+        deal_id TEXT NOT NULL,
+        logistics_provider_id TEXT,
+        logistics_provider_name TEXT,
+        origin TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        distance_km DOUBLE PRECISION NOT NULL,
+        quantity DOUBLE PRECISION NOT NULL,
+        transport_mode TEXT NOT NULL,
+        vehicle_type TEXT NOT NULL,
+        driver_name TEXT NOT NULL,
+        estimated_cost DOUBLE PRECISION NOT NULL,
+        cost_per_tonne DOUBLE PRECISION NOT NULL,
+        estimated_delivery_days INTEGER NOT NULL,
+        pickup_date TEXT,
+        estimated_delivery TEXT,
+        status TEXT NOT NULL,
+        tracking_code TEXT NOT NULL,
+        tracking_notes JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS app_notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        role_target TEXT,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        link TEXT,
+        read BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        action TEXT NOT NULL,
+        resource TEXT NOT NULL,
+        details TEXT,
+        timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 2. Seed Demo Accounts
+    const defaultPasswordHash = await bcrypt.hash('Password123!', 10);
+
+    const demoUsers = [
+      {
+        id: 'user-buyer-demo',
+        email: 'buyer.demo@carbonx.demo',
+        name: 'Aarav Mehta',
+        company: 'GreenSteel Industries',
+        role: 'BUYER',
+        location: 'Pune, Maharashtra',
+        buyerProfile: {
+          primaryApplication: 'Industrial Steel Production',
+          monthlyRequirement: 300,
+          requiredPurity: 99.0,
+          preferredLocation: 'Pune, Maharashtra',
+        },
+      },
+      {
+        id: 'user-dealer-demo',
+        email: 'dealer.demo@carbonx.demo',
+        name: 'Riya Sharma',
+        company: 'CarbonBridge Trading',
+        role: 'DEALER',
+        location: 'Mumbai, Maharashtra',
+        dealerProfile: {
+          organizationType: 'Commodity Brokerage',
+          operatingRegion: 'Western India / MH & GJ',
+          expectedMonthlyVolume: 2500,
+        },
+      },
+      {
+        id: 'user-logistics-demo',
+        email: 'logistics.demo@carbonx.demo',
+        name: 'Kabir Rao',
+        company: 'BlueRoute Logistics',
+        role: 'LOGISTICS',
+        location: 'Navi Mumbai, Maharashtra',
+        logisticsProfile: {
+          transportType: 'Cryogenic Tanker Fleet',
+          fleetSize: 18,
+          serviceRegion: 'Interstate Transport',
+          co2TransportCapability: true,
+        },
+      },
+    ];
+
+    for (const u of demoUsers) {
+      // Upsert User
+      await client.query(
         `INSERT INTO users (id, email, password_hash, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [user.id, user.email.toLowerCase(), defaultPasswordHash, user.createdAt, user.createdAt]
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT (email) DO UPDATE SET password_hash = $3, updated_at = CURRENT_TIMESTAMP`,
+        [u.id, u.email, defaultPasswordHash]
       );
 
-      await query(
-        `INSERT INTO profiles (id, user_id, name, email, company, role, location, avatar_url, buyer_profile, dealer_profile, logistics_profile, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      // Upsert Profile
+      await client.query(
+        `INSERT INTO profiles (id, user_id, name, email, company, role, location, buyer_profile, dealer_profile, logistics_profile, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT (user_id) DO UPDATE SET role = $6, company = $5, name = $3, updated_at = CURRENT_TIMESTAMP`,
         [
-          `prof-${user.id}`,
-          user.id,
-          user.name,
-          user.email.toLowerCase(),
-          user.company,
-          user.role,
-          user.location,
-          user.avatarUrl || null,
-          user.buyerProfile ? JSON.stringify(user.buyerProfile) : null,
-          user.dealerProfile ? JSON.stringify(user.dealerProfile) : null,
-          user.logisticsProfile ? JSON.stringify(user.logisticsProfile) : null,
-          user.createdAt,
-          user.createdAt,
-        ]
-      );
-      console.log(`Seeded user: ${user.email} (${user.role})`);
-    } else {
-      await query(
-        `UPDATE users SET password_hash = $1 WHERE email = $2`,
-        [defaultPasswordHash, user.email.toLowerCase()]
-      );
-      await query(
-        `UPDATE profiles SET name = $1, company = $2, role = $3 WHERE user_id = $4`,
-        [user.name, user.company, user.role, user.id]
-      );
-    }
-  }
-
-  // 3. Seed Carbon Sources if table empty
-  const sourcesCount = await query(`SELECT COUNT(*) as count FROM carbon_sources`);
-  if (parseInt(sourcesCount[0].count, 10) === 0) {
-    for (const src of INITIAL_SOURCES) {
-      await query(
-        `INSERT INTO carbon_sources (id, company_name, facility_name, industry, location, latitude, longitude, available_quantity, unit, purity, capture_method, price_per_tonne, availability_date, verification_status, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-        [
-          src.id,
-          src.company_name,
-          src.facility_name,
-          src.industry,
-          src.location,
-          src.latitude,
-          src.longitude,
-          src.available_quantity,
-          src.unit,
-          src.purity,
-          src.capture_method,
-          src.price_per_tonne,
-          src.availability_date,
-          src.verification_status,
-          src.created_at,
-          src.updated_at,
+          `prof-${u.id}`,
+          u.id,
+          u.name,
+          u.email,
+          u.company,
+          u.role,
+          u.location,
+          u.buyerProfile ? JSON.stringify(u.buyerProfile) : null,
+          u.dealerProfile ? JSON.stringify(u.dealerProfile) : null,
+          u.logisticsProfile ? JSON.stringify(u.logisticsProfile) : null,
         ]
       );
     }
-    console.log(`Seeded ${INITIAL_SOURCES.length} carbon sources.`);
+
+    console.log('PostgreSQL database initialized and demo accounts seeded successfully.');
+    return true;
+  } catch (err) {
+    console.error('Failed to initialize PostgreSQL database:', err);
+    return false;
+  } finally {
+    client.release();
   }
-
-  // 4. Seed Bidding Opportunities if table empty
-  const oppsCount = await query(`SELECT COUNT(*) as count FROM bidding_opportunities`);
-  if (parseInt(oppsCount[0].count, 10) === 0) {
-    const now = new Date();
-    const endTime1 = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString(); // 48h from now
-    const endTime2 = new Date(now.getTime() + 72 * 60 * 60 * 1000).toISOString(); // 72h from now
-
-    await query(
-      `INSERT INTO bidding_opportunities (id, carbon_source_id, dealer_id, dealer_name, title, description, quantity, unit, starting_price, current_highest_bid, minimum_bid_increment, bid_count, auction_start_time, auction_end_time, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        'opp-1',
-        'source-1',
-        'user-dealer-demo',
-        'CarbonBridge Trading',
-        'Mumbai Steel Works — 500t Amine Scrubbed CO₂ Spot Supply',
-        'Competitive bidding for 500 tonnes/month high-purity (99.2%) industrial CO₂ captured from blast furnace unit in Mumbai.',
-        500,
-        'tonnes',
-        4000,
-        4250,
-        50,
-        8,
-        now.toISOString(),
-        endTime1,
-        'LIVE',
-        now.toISOString(),
-        now.toISOString(),
-      ]
-    );
-
-    await query(
-      `INSERT INTO bidding_opportunities (id, carbon_source_id, dealer_id, dealer_name, title, description, quantity, unit, starting_price, current_highest_bid, minimum_bid_increment, bid_count, auction_start_time, auction_end_time, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        'opp-2',
-        'source-2',
-        'user-dealer-demo',
-        'CarbonBridge Trading',
-        'Gujarat Cement Industries — 800t Flue Gas CO₂ Supply',
-        'Competitive bidding for 800 tonnes/month 96.5% CO₂ recovered via calcium looping process in Ahmedabad.',
-        800,
-        'tonnes',
-        3600,
-        3800,
-        100,
-        5,
-        now.toISOString(),
-        endTime2,
-        'LIVE',
-        now.toISOString(),
-        now.toISOString(),
-      ]
-    );
-
-    // Seed initial bids for opp-1
-    await query(
-      `INSERT INTO bids (id, bidding_opportunity_id, bidder_id, bidder_name, bidder_company, amount_per_tonne, quantity, total_amount, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [
-        'bid-demo-1',
-        'opp-1',
-        'user-buyer-demo',
-        'Aarav Mehta',
-        'GreenSteel Industries',
-        4250,
-        300,
-        1275000,
-        'WINNING',
-        now.toISOString(),
-        now.toISOString(),
-      ]
-    );
-
-    console.log('Seeded 2 bidding opportunities and initial demo bids.');
-  }
-
-  // 5. Seed Buyer Requirements if table empty
-  const reqsCount = await query(`SELECT COUNT(*) as count FROM buyer_requirements`);
-  if (parseInt(reqsCount[0].count, 10) === 0) {
-    for (const req of INITIAL_REQUIREMENTS) {
-      await query(
-        `INSERT INTO buyer_requirements (id, buyer_id, buyer_name, title, application, required_quantity, required_purity, location, latitude, longitude, max_distance, max_price, frequency, status, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-        [
-          req.id,
-          req.buyer_id,
-          req.buyer_name,
-          req.title,
-          req.application,
-          req.required_quantity,
-          req.required_purity,
-          req.location,
-          req.latitude,
-          req.longitude,
-          req.max_distance,
-          req.max_price,
-          req.frequency,
-          req.status,
-          req.created_at,
-        ]
-      );
-    }
-    console.log(`Seeded ${INITIAL_REQUIREMENTS.length} buyer requirements.`);
-  }
-
-  // 6. Seed Deals if table empty
-  const dealsCount = await query(`SELECT COUNT(*) as count FROM facilitated_deals`);
-  if (parseInt(dealsCount[0].count, 10) === 0) {
-    for (const d of INITIAL_DEALS) {
-      await query(
-        `INSERT INTO facilitated_deals (id, dealer_id, dealer_name, buyer_id, buyer_name, carbon_source_id, carbon_source_name, requirement_id, quantity, price_per_tonne, total_carbon_value, logistics_cost, total_value, match_score, commission, status, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
-        [
-          d.id,
-          d.dealer_id || null,
-          d.dealer_name || null,
-          d.buyer_id,
-          d.buyer_name,
-          d.carbon_source_id,
-          d.carbon_source_name,
-          d.requirement_id || null,
-          d.quantity,
-          d.price_per_tonne,
-          d.total_carbon_value,
-          d.logistics_cost,
-          d.total_value,
-          d.match_score,
-          d.commission,
-          d.status,
-          d.created_at,
-          d.updated_at,
-        ]
-      );
-    }
-    console.log(`Seeded ${INITIAL_DEALS.length} deals.`);
-  }
-
-  // 7. Seed Shipments if table empty
-  const shipCount = await query(`SELECT COUNT(*) as count FROM logistics_shipments`);
-  if (parseInt(shipCount[0].count, 10) === 0) {
-    for (const s of INITIAL_SHIPMENTS) {
-      await query(
-        `INSERT INTO logistics_shipments (id, deal_id, logistics_provider_id, logistics_provider_name, origin, destination, distance_km, quantity, transport_mode, vehicle_type, driver_name, estimated_cost, cost_per_tonne, estimated_delivery_days, pickup_date, estimated_delivery, status, tracking_code, tracking_notes, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
-        [
-          s.id,
-          s.deal_id,
-          s.logistics_provider_id || null,
-          s.logistics_provider_name || null,
-          s.origin,
-          s.destination,
-          s.distance_km,
-          s.quantity,
-          s.transport_mode,
-          s.vehicle_type,
-          s.driver_name,
-          s.estimated_cost,
-          s.cost_per_tonne,
-          s.estimated_delivery_days,
-          s.pickup_date || null,
-          s.estimated_delivery || null,
-          s.status,
-          s.tracking_code,
-          JSON.stringify(s.tracking_notes),
-          s.created_at,
-          s.updated_at,
-        ]
-      );
-    }
-    console.log(`Seeded ${INITIAL_SHIPMENTS.length} shipments.`);
-  }
-
-  // 8. Seed Notifications if table empty
-  const notifCount = await query(`SELECT COUNT(*) as count FROM app_notifications`);
-  if (parseInt(notifCount[0].count, 10) === 0) {
-    for (const n of INITIAL_NOTIFICATIONS) {
-      await query(
-        `INSERT INTO app_notifications (id, user_id, role_target, title, message, link, read, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [n.id, n.user_id, n.role_target || 'ALL', n.title, n.message, n.link || null, n.read, n.created_at]
-      );
-    }
-  }
-
-  // 9. Seed Audit Logs if table empty
-  const auditCount = await query(`SELECT COUNT(*) as count FROM audit_logs`);
-  if (parseInt(auditCount[0].count, 10) === 0) {
-    for (const a of INITIAL_AUDIT_LOGS) {
-      await query(
-        `INSERT INTO audit_logs (id, user_id, user_name, role, action, resource, details, timestamp)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [a.id, a.user_id, a.user_name, a.role, a.action, a.resource, a.details || null, a.timestamp]
-      );
-    }
-  }
-
-  console.log('Database initialization complete.');
-}
-
-if (require.main === module) {
-  initializeDatabase()
-    .then(() => process.exit(0))
-    .catch((err) => {
-      console.error('Failed to initialize database:', err);
-      process.exit(1);
-    });
 }

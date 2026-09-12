@@ -51,7 +51,7 @@ export default function LogisticsShipmentDetailPage() {
         headers: {
           "Content-Type": "application/json",
           "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "LOGISTICS_PROVIDER",
+          "x-user-role": user?.role || "LOGISTICS",
         },
         body: JSON.stringify({
           status: nextStatus,
@@ -84,7 +84,7 @@ export default function LogisticsShipmentDetailPage() {
         headers: {
           "Content-Type": "application/json",
           "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "LOGISTICS_PROVIDER",
+          "x-user-role": user?.role || "LOGISTICS",
         },
         body: JSON.stringify({
           vehicle_type: vehicleType,

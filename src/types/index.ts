@@ -1,23 +1,41 @@
-export type UserRole = 'BUYER' | 'DEALER' | 'LOGISTICS_PROVIDER';
+export type UserRole = 'BUYER' | 'DEALER' | 'LOGISTICS';
 
 export interface BuyerProfileData {
-  primaryApplication: string;
-  monthlyRequirement: number;
-  requiredPurity: number;
-  preferredLocation: string;
+  industry?: string;
+  primaryApplication?: string;
+  estimatedCo2Req?: string;
+  monthlyRequirement?: string | number;
+  preferredPurity?: string | number;
+  requiredPurity?: string | number;
+  preferredDeliveryLocation?: string;
+  preferredLocation?: string;
+  usageObjective?: string;
+  sustainabilityGoals?: string;
 }
 
 export interface DealerProfileData {
-  organizationType: string;
-  operatingRegion: string;
-  expectedMonthlyVolume: number;
+  tradingName?: string;
+  businessCategory?: string;
+  organizationType?: string;
+  areasServed?: string;
+  operatingRegion?: string;
+  industriesServed?: string;
+  commercialExperience?: string;
+  dealVolume?: string;
+  expectedMonthlyVolume?: string | number;
+  businessDescription?: string;
 }
 
 export interface LogisticsProfileData {
-  transportType: string;
-  fleetSize: number;
-  serviceRegion: string;
-  co2TransportCapability: boolean;
+  logisticsCompanyName?: string;
+  serviceRegions?: string;
+  serviceRegion?: string;
+  co2TransportCapability?: string | boolean;
+  approxCapacity?: string;
+  transportModes?: string;
+  transportType?: string;
+  fleetInformation?: string;
+  fleetSize?: string | number;
 }
 
 export interface UserProfile {

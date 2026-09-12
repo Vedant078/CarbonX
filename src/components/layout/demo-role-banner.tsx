@@ -28,7 +28,7 @@ export function DemoRoleBanner() {
       desc: 'CarbonBridge Brokers',
     },
     {
-      id: 'LOGISTICS_PROVIDER',
+      id: 'LOGISTICS',
       label: 'Logistics Demo',
       icon: <Truck className="w-3.5 h-3.5" />,
       desc: 'EcoTransit Logistics',

@@ -94,7 +94,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Record<PermissionAction, boolean>> = {
     VIEW_DELIVERY_HISTORY: true,
     CHANGE_DEAL_PRICE: true,
   },
-  LOGISTICS_PROVIDER: {
+  LOGISTICS: {
     VIEW_MARKETPLACE: true,
     SEARCH_SUPPLY: false,
     CREATE_REQUIREMENT: false,
@@ -129,34 +129,39 @@ const ROLE_PERMISSIONS: Record<UserRole, Record<PermissionAction, boolean>> = {
 
 export function hasRole(user: UserProfile | null, requiredRole: UserRole): boolean {
   if (!user) return false;
-  return user.role === requiredRole;
+  return user.role === requiredRole || (requiredRole === 'LOGISTICS' && (user.role as any) === 'LOGISTICS_PROVIDER');
 }
 
 export function canPerformAction(user: UserProfile | null, action: PermissionAction): boolean {
   if (!user) return false;
-  return ROLE_PERMISSIONS[user.role]?.[action] ?? false;
+  const roleKey = user.role === ('LOGISTICS_PROVIDER' as any) ? 'LOGISTICS' : user.role;
+  return ROLE_PERMISSIONS[roleKey]?.[action] ?? false;
 }
 
 export function canAccessRoute(user: UserProfile | null, pathname: string): boolean {
   if (!user) return false;
 
-  if (pathname.startsWith('/buyer') && user.role !== 'BUYER') return false;
-  if (pathname.startsWith('/dealer') && user.role !== 'DEALER') return false;
-  if (pathname.startsWith('/logistics') && user.role !== 'LOGISTICS_PROVIDER') return false;
+  const roleStr = String(user.role).toUpperCase();
 
-  if (pathname.startsWith('/dashboard/buyer') && user.role !== 'BUYER') return false;
-  if (pathname.startsWith('/dashboard/dealer') && user.role !== 'DEALER') return false;
-  if (pathname.startsWith('/dashboard/logistics') && user.role !== 'LOGISTICS_PROVIDER') return false;
+  if (pathname.startsWith('/buyer') && roleStr !== 'BUYER') return false;
+  if (pathname.startsWith('/dealer') && roleStr !== 'DEALER') return false;
+  if (pathname.startsWith('/logistics') && roleStr !== 'LOGISTICS' && roleStr !== 'LOGISTICS_PROVIDER') return false;
+
+  if (pathname.startsWith('/dashboard/buyer') && roleStr !== 'BUYER') return false;
+  if (pathname.startsWith('/dashboard/dealer') && roleStr !== 'DEALER') return false;
+  if (pathname.startsWith('/dashboard/logistics') && roleStr !== 'LOGISTICS' && roleStr !== 'LOGISTICS_PROVIDER') return false;
 
   return true;
 }
 
-export function getDashboardRouteForRole(role: UserRole): string {
-  switch (role) {
+export function getDashboardRouteForRole(role: UserRole | string): string {
+  const roleStr = String(role).toUpperCase();
+  switch (roleStr) {
     case 'BUYER':
       return '/buyer/dashboard';
     case 'DEALER':
       return '/dealer/dashboard';
+    case 'LOGISTICS':
     case 'LOGISTICS_PROVIDER':
       return '/logistics/dashboard';
     default:

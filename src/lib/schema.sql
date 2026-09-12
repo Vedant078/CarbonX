@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   company TEXT NOT NULL,
-  role TEXT, -- 'BUYER', 'DEALER', 'LOGISTICS_PROVIDER', or NULL
+  role TEXT, -- 'BUYER', 'DEALER', 'LOGISTICS', or NULL
   location TEXT,
   avatar_url TEXT,
   buyer_profile JSONB,

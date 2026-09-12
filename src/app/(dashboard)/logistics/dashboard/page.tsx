@@ -55,7 +55,7 @@ export default function LogisticsDashboardPage() {
         headers: {
           "Content-Type": "application/json",
           "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "LOGISTICS_PROVIDER",
+          "x-user-role": user?.role || "LOGISTICS",
         },
       });
       const data = await res.json();

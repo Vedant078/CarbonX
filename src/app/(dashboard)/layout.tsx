@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { Sidebar } from '@/components/layout/sidebar';
 import { AppHeader } from '@/components/layout/app-header';
+import { PublicHeader } from '@/components/layout/public-header';
+import { PublicFooter } from '@/components/layout/public-footer';
 import { canAccessRoute, getDashboardRouteForRole } from '@/lib/rbac';
 import { Loader2 } from 'lucide-react';
 
@@ -14,11 +16,15 @@ export default function DashboardRootLayout({ children }: { children: React.Reac
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const isPublicDashboardRoute = pathname.startsWith('/marketplace') || pathname.startsWith('/analytics');
+
   useEffect(() => {
     if (isLoading) return;
 
     if (!isAuthenticated || !user) {
-      router.replace('/login');
+      if (!isPublicDashboardRoute) {
+        router.replace('/login');
+      }
       return;
     }
 
@@ -40,10 +46,10 @@ export default function DashboardRootLayout({ children }: { children: React.Reac
       router.replace(targetRoute);
       return;
     }
-  }, [user, isAuthenticated, isLoading, pathname, router]);
+  }, [user, isAuthenticated, isLoading, pathname, router, isPublicDashboardRoute]);
 
   // Loading state guard to prevent flickering of unauthorized content
-  if (isLoading || !isAuthenticated || !user || !user.role || !canAccessRoute(user, pathname)) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4 font-mono text-white">
         <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
@@ -52,6 +58,48 @@ export default function DashboardRootLayout({ children }: { children: React.Reac
         <div className="text-center space-y-1">
           <h2 className="text-sm font-bold tracking-wider text-emerald-400 uppercase">CARBONX PLATFORM</h2>
           <p className="text-xs text-slate-400">Authenticating workspace & permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Unauthenticated user accessing public marketplace or analytics pages
+  if (!isAuthenticated || !user) {
+    if (isPublicDashboardRoute) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+          <PublicHeader />
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+            {children}
+          </main>
+          <PublicFooter />
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4 font-mono text-white">
+        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+          <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+        </div>
+        <div className="text-center space-y-1">
+          <h2 className="text-sm font-bold tracking-wider text-emerald-400 uppercase">CARBONX PLATFORM</h2>
+          <p className="text-xs text-slate-400">Redirecting to sign in...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Authenticated user but missing role or blocked route
+  if (!user.role || !canAccessRoute(user, pathname)) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4 font-mono text-white">
+        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+          <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+        </div>
+        <div className="text-center space-y-1">
+          <h2 className="text-sm font-bold tracking-wider text-emerald-400 uppercase">CARBONX PLATFORM</h2>
+          <p className="text-xs text-slate-400">Verifying permissions...</p>
         </div>
       </div>
     );

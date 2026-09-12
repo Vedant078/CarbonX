@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShoppingBag, Briefcase, Truck } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,10 +39,8 @@ export default function LoginPage() {
       <div className="max-w-lg w-full space-y-6 bg-white border border-slate-200/90 p-6 sm:p-8 rounded-2xl shadow-xl">
         
         {/* Brand & Titles */}
-        <div className="text-center space-y-2">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center font-mono font-bold text-white text-base shadow-md mx-auto">
-            CX
-          </div>
+        <div className="text-center space-y-3 flex flex-col items-center">
+          <BrandLogo href="/" size="md" subtitle="B2B Carbon Marketplace" className="justify-center" />
 
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-slate-900">

@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Atom } from 'lucide-react';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 export function PublicFooter() {
   return (
@@ -8,14 +8,7 @@ export function PublicFooter() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
           <div className="md:col-span-2 space-y-4">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md">
-                <Atom className="w-5 h-5" />
-              </div>
-              <span className="text-2xl font-black tracking-tight text-white">
-                Carbon<span className="text-blue-500">X</span>
-              </span>
-            </Link>
+            <BrandLogo href="/" size="md" theme="dark" />
             <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
               Captured Carbon. Matched to Opportunity. Digital infrastructure for the circular carbon economy, connecting industrial capture with productive utilization.
             </p>
@@ -35,17 +28,17 @@ export function PublicFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/listings/new" className="hover:text-white transition-colors">
+                <Link href="/#list-co2" className="hover:text-white transition-colors">
                   List Captured CO₂
                 </Link>
               </li>
               <li>
-                <Link href="/matches" className="hover:text-white transition-colors">
+                <Link href="/marketplace" className="hover:text-white transition-colors">
                   Matching Engine
                 </Link>
               </li>
               <li>
-                <Link href="/shipments" className="hover:text-white transition-colors">
+                <Link href="/marketplace" className="hover:text-white transition-colors">
                   Logistics Estimator
                 </Link>
               </li>
@@ -58,23 +51,23 @@ export function PublicFooter() {
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link href="/dashboard" className="hover:text-white transition-colors">
-                  Supplier Dashboard
+                <Link href="/buyer/dashboard" className="hover:text-white transition-colors">
+                  Buyer Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-white transition-colors">
-                  Buyer Dashboard
+                <Link href="/dealer/dashboard" className="hover:text-white transition-colors">
+                  Dealer Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link href="/logistics/dashboard" className="hover:text-white transition-colors">
+                  Logistics Dashboard
                 </Link>
               </li>
               <li>
                 <Link href="/analytics" className="hover:text-white transition-colors">
                   Ecosystem Analytics
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin" className="hover:text-white transition-colors">
-                  Admin Platform
                 </Link>
               </li>
             </ul>

@@ -240,7 +240,13 @@ export default function ListingDetailPage() {
             variant="secondary"
             size="lg"
             className="w-full shadow-lg"
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              if (!user) {
+                router.push('/login');
+                return;
+              }
+              setModalOpen(true);
+            }}
           >
             Request Supply <Send className="w-4 h-4 ml-1" />
           </Button>

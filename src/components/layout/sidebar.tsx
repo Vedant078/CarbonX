@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { UserRole } from '@/types';
+import { BrandLogo } from '@/components/ui/brand-logo';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -35,7 +36,7 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
 
   const isBuyer = role === 'BUYER';
   const isDealer = role === 'DEALER';
-  const isLogistics = role === 'LOGISTICS_PROVIDER';
+  const isLogistics = role === 'LOGISTICS';
 
   const buyerNav = [
     { label: 'Dashboard', href: '/buyer/dashboard', icon: LayoutDashboard },
@@ -136,18 +137,13 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
     <aside className="w-64 bg-card border-r border-border/80 flex flex-col justify-between h-screen sticky top-0 font-sans z-40 select-none">
       <div className="p-4 space-y-6">
         {/* Brand */}
-        <div className="flex items-center justify-between px-2 pt-2">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center font-mono font-bold text-slate-950 text-sm shadow-md">
-              CX
-            </div>
-            <div className="flex flex-col">
-              <span className="font-mono font-bold tracking-wider text-base text-foreground">CARBONX</span>
-              <span className="text-[10px] font-mono text-emerald-400 font-semibold tracking-widest uppercase">
-                {role ? role.replace('_', ' ') : 'BUYER'}
-              </span>
-            </div>
-          </Link>
+        <div className="flex items-center justify-between px-1 pt-1">
+          <BrandLogo
+            href="/"
+            size="sm"
+            subtitle={role ? role.replace('_', ' ') : 'BUYER'}
+            roleBadge={role || 'BUYER'}
+          />
         </div>
 
         {/* Primary CTA Button */}

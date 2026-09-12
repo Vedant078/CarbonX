@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     {
       testId: 3,
       description: 'LOGISTICS_PROVIDER attempts POST /api/supply-requests (Submit Buyer Supply Request)',
-      callerRole: 'LOGISTICS_PROVIDER' as const,
+      callerRole: 'LOGISTICS' as const,
       handler: requireBuyer,
     },
     {
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     {
       testId: 6,
       description: 'LOGISTICS_PROVIDER attempts POST /api/deal-proposals (Create Dealer Proposal)',
-      callerRole: 'LOGISTICS_PROVIDER' as const,
+      callerRole: 'LOGISTICS' as const,
       handler: requireDealer,
     },
     {

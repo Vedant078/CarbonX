@@ -59,7 +59,7 @@ export default function LandingPage() {
                     </Button>
                   </Link>
 
-                  <Link href="/listings/new">
+                  <Link href="/#list-co2">
                     <Button variant="outline" size="lg">
                       List Captured CO₂
                     </Button>
@@ -126,7 +126,7 @@ export default function LandingPage() {
         </section>
 
         {/* HOW IT WORKS SECTION */}
-        <section id="how-it-works" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="how-it-works" className="scroll-mt-20 py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <h2 className="text-xs font-bold text-blue-600 uppercase tracking-widest">ECOSYSTEM FLOW</h2>
             <h3 className="text-3xl sm:text-4xl font-black text-[#0B1220] tracking-tight">
@@ -479,7 +479,7 @@ export default function LandingPage() {
         </section>
 
         {/* APPLICATIONS SECTION */}
-        <section id="applications" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="applications" className="scroll-mt-20 py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <h2 className="text-xs font-bold text-blue-600 uppercase tracking-widest">PRODUCTIVE USE</h2>
             <h3 className="text-3xl sm:text-4xl font-black text-[#0B1220] tracking-tight">
@@ -509,6 +509,106 @@ export default function LandingPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        {/* INDUSTRIAL EMITTER ONBOARDING SECTION */}
+        <section id="list-co2" className="scroll-mt-20 py-20 bg-slate-900 text-white border-b border-slate-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+              <div className="lg:col-span-6 space-y-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-900/60 border border-blue-500/40 text-blue-400 text-xs font-bold uppercase tracking-wider">
+                  <Factory className="w-3.5 h-3.5" /> INDUSTRIAL EMITTER ONBOARDING
+                </div>
+
+                <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+                  Connect your industrial CO₂ supply with CarbonX
+                </h2>
+
+                <p className="text-slate-300 text-base leading-relaxed">
+                  Are you a steel, cement, thermal power, or chemical plant capturing carbon? CarbonX provides digital infrastructure to verify, price, and match your captured CO₂ stream with commercial buyers.
+                </p>
+
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-600/30 border border-blue-500/50 text-blue-400 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">Submit Capture Specifications</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Specify available monthly tonnage, purity %, temperature, pressure, and location coordinates.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-teal-600/30 border border-teal-500/50 text-teal-400 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">Automated Match & Verification</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">CarbonX verifies capture parameters and ranks off-taker demand within optimal transport radius.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600/30 border border-emerald-500/50 text-emerald-400 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">Execute Commercial Contracts</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Finalize offtake proposals with commercial intermediaries and buyers with integrated logistics estimation.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex flex-wrap items-center gap-4">
+                  <Link href="/marketplace">
+                    <Button variant="secondary" size="lg">
+                      Explore Active Off-takers →
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="lg:col-span-6 bg-slate-950 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-6">
+                <div className="border-b border-slate-800 pb-4">
+                  <span className="text-xs font-bold text-blue-400 uppercase tracking-widest block">EMITTER PARTNERSHIP INQUIRY</span>
+                  <h3 className="text-xl font-bold text-white mt-1">Register Your Facility Capture Output</h3>
+                </div>
+
+                <form onSubmit={(e) => { e.preventDefault(); alert("Inquiry submitted! A CarbonX representative will contact your technical team."); }} className="space-y-4 text-xs">
+                  <div>
+                    <label className="block text-slate-300 font-bold mb-1">Facility Name & Company</label>
+                    <input type="text" placeholder="e.g. Jindal Steel CO₂ Recovery Unit" required className="w-full h-10 px-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Source Industry</label>
+                      <select className="w-full h-10 px-3 bg-slate-900 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option>Steel Plant</option>
+                        <option>Cement Plant</option>
+                        <option>Power Plant</option>
+                        <option>Chemical / Refinery</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Output (t/month)</label>
+                      <input type="number" placeholder="500" required className="w-full h-10 px-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-bold mb-1">Location / State</label>
+                    <input type="text" placeholder="e.g. Angul, Odisha" required className="w-full h-10 px-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+
+                  <Button variant="primary" size="md" type="submit" className="w-full font-bold">
+                    Submit Facility Specs for Review →
+                  </Button>
+                </form>
+              </div>
+            </div>
           </div>
         </section>
 

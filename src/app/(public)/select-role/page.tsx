@@ -6,6 +6,7 @@ import { ShoppingBag, Briefcase, Truck, ArrowRight, Check } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { UserRole } from "@/types";
 import { getDashboardRouteForRole } from "@/lib/rbac";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 export default function SelectRolePage() {
   const router = useRouter();
@@ -23,8 +24,9 @@ export default function SelectRolePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground py-16 px-6 lg:px-12 flex flex-col justify-center items-center font-sans">
-      <div className="max-w-4xl mx-auto text-center space-y-4 mb-12">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-semibold">
+      <div className="max-w-4xl mx-auto text-center space-y-4 mb-12 flex flex-col items-center">
+        <BrandLogo href="/" size="md" subtitle="Workspace Setup" className="justify-center mb-1" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-mono font-semibold">
           FIRST TIME SETUP
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight font-mono">
@@ -148,7 +150,7 @@ export default function SelectRolePage() {
 
           <div className="pt-6">
             <button
-              onClick={() => handleChooseRole("LOGISTICS_PROVIDER")}
+              onClick={() => handleChooseRole("LOGISTICS")}
               disabled={isLoading}
               className="w-full py-3 px-4 rounded-xl font-semibold font-mono text-xs bg-cyan-600 hover:bg-cyan-500 text-white transition-all shadow-md active:scale-95 disabled:opacity-50"
             >

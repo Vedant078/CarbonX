@@ -830,7 +830,7 @@ export class CarbonXServerDatabase {
 
     await this.createNotification({
       user_id: 'user-logistics-demo',
-      role_target: 'LOGISTICS_PROVIDER',
+      role_target: 'LOGISTICS',
       title: 'New Shipment Opportunity Available',
       message: `Shipment ${shipment.tracking_code} (${updatedDeal.quantity}t CO2) is ready for assignment.`,
       link: '/logistics/dashboard',
@@ -887,7 +887,7 @@ export class CarbonXServerDatabase {
     );
 
     const updated = await this.getShipmentById(shipmentId);
-    await this.logAudit(logisticsUserId, logisticsName, 'LOGISTICS_PROVIDER', 'ACCEPT_SHIPMENT', `Accepted shipment ${shipmentId}`);
+    await this.logAudit(logisticsUserId, logisticsName, 'LOGISTICS', 'ACCEPT_SHIPMENT', `Accepted shipment ${shipmentId}`);
 
     return updated!;
   }
@@ -919,7 +919,7 @@ export class CarbonXServerDatabase {
     await this.logAudit(
       userId || 'user-logistics-demo',
       updated?.logistics_provider_name || 'EcoTransit Logistics',
-      'LOGISTICS_PROVIDER',
+      'LOGISTICS',
       'UPDATE_SHIPMENT_STATUS',
       `Updated shipment ${updated?.tracking_code} to ${newStatus}`
     );
