@@ -407,214 +407,271 @@ export default function DealerOpportunitiesPage() {
 
       {/* PORTAL-RENDERED LAUNCH AUCTION MODAL */}
       {showCreateModal && mounted && createPortal(
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          {/* Dark backdrop overlay */}
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="launch-auction-modal-title"
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-150"
+        >
+          {/* Light backdrop overlay */}
           <div 
             onClick={() => setShowCreateModal(false)}
-            className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
           />
 
-          {/* Solid high-contrast opaque Modal Dialog Container */}
-          <div className="relative z-[1010] bg-slate-900 border border-slate-700/90 rounded-2xl p-6 sm:p-8 max-w-xl w-full text-slate-100 shadow-2xl space-y-5 font-mono my-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-                  <Gavel className="w-5 h-5 text-indigo-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">Launch Competitive CO₂ Auction</h2>
-                  <p className="text-[11px] text-slate-400">Publish spot supply auction to verified buyers</p>
-                </div>
+          {/* Modal Dialog Container - Clean Light Dashboard Theme */}
+          <div className="relative z-[1010] bg-white border border-slate-200/90 rounded-xl w-full max-w-lg max-h-[90vh] shadow-2xl flex flex-col font-sans overflow-hidden my-auto text-slate-900">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-slate-50/70">
+              <div>
+                <h2 id="launch-auction-modal-title" className="text-base font-bold font-mono text-slate-900 tracking-tight">
+                  Create CO₂ auction
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5 font-sans">
+                  Publish captured CO₂ supply for verified industrial buyers.
+                </p>
               </div>
               <button 
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
                 aria-label="Close modal"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* General Modal Error */}
-            {modalError && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs rounded-xl flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                <span>{modalError}</span>
-              </div>
-            )}
+            {/* Modal Body / Scrollable Form */}
+            <form onSubmit={handleCreateAuction} className="flex-1 overflow-y-auto p-6 space-y-5 text-xs font-sans bg-white">
+              {/* General Server Error Banner */}
+              {modalError && (
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
+                  <div>
+                    <span className="font-semibold block text-red-800 mb-0.5">Submission error</span>
+                    <span>{modalError}</span>
+                  </div>
+                </div>
+              )}
 
-            {/* Form */}
-            <form onSubmit={handleCreateAuction} className="space-y-4 text-xs">
-              {/* Source Select */}
-              <div>
-                <label className="block text-slate-200 font-bold mb-1.5">
-                  Select Industrial CO₂ Source <span className="text-rose-400">*</span>
-                </label>
-                <select
-                  value={selectedSourceId}
-                  onChange={(e) => setSelectedSourceId(e.target.value)}
-                  className="w-full bg-slate-800/90 border border-slate-600 rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                >
-                  {sources.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-slate-900 text-white">
-                      {s.company_name} ({s.facility_name}) — {s.available_quantity} t available @ ₹{s.price_per_tonne}/t
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Title */}
-              <div>
-                <label className="block text-slate-200 font-bold mb-1.5">
-                  Auction Title <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Spot 500t Ultra-Pure CO2 Auction"
-                  value={auctionTitle}
-                  onChange={(e) => setAuctionTitle(e.target.value)}
-                  className="w-full bg-slate-800/90 border border-slate-600 rounded-xl px-3.5 py-2.5 text-white placeholder:text-slate-500 font-mono text-xs focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                />
-              </div>
-
-              {/* Description (Optional) */}
-              <div>
-                <label className="block text-slate-200 font-bold mb-1.5">Auction Notes / Details (Optional)</label>
-                <textarea
-                  rows={2}
-                  placeholder="Additional specs, purity verification, delivery timeframe..."
-                  value={auctionDesc}
-                  onChange={(e) => setAuctionDesc(e.target.value)}
-                  className="w-full bg-slate-800/90 border border-slate-600 rounded-xl px-3.5 py-2.5 text-white placeholder:text-slate-500 font-mono text-xs focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                />
-              </div>
-
-              {/* Quantity & Starting Price */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-200 font-bold mb-1.5">
-                    Auction Quantity (tonnes) <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    required
-                    value={auctionQuantity}
-                    onChange={(e) => setAuctionQuantity(e.target.value)}
-                    className={`w-full bg-slate-800/90 border rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:ring-2 transition-all ${
-                      qtyErr 
-                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' 
-                        : 'border-slate-600 focus:border-indigo-400 focus:ring-indigo-500/20'
-                    }`}
-                  />
-                  {qtyErr && (
-                    <p className="text-rose-400 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 shrink-0" /> {qtyErr}
-                    </p>
-                  )}
+              {/* SECTION A — SUPPLY */}
+              <div className="space-y-3.5">
+                <div className="text-[11px] font-bold font-mono tracking-wider text-slate-400 uppercase">
+                  Supply
                 </div>
 
                 <div>
-                  <label className="block text-slate-200 font-bold mb-1.5">
-                    Starting Price (₹/tonne) <span className="text-rose-400">*</span>
+                  <label htmlFor="auction-source-select" className="block text-xs font-semibold text-slate-800 mb-1.5">
+                    Industrial CO₂ source <span className="text-red-500 ml-0.5">*</span>
+                  </label>
+                  <select
+                    id="auction-source-select"
+                    value={selectedSourceId}
+                    onChange={(e) => setSelectedSourceId(e.target.value)}
+                    className="w-full bg-slate-50/80 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-colors font-sans truncate"
+                  >
+                    {sources.map((s) => (
+                      <option key={s.id} value={s.id} className="bg-white text-slate-900">
+                        {s.company_name} ({s.facility_name}) — {s.available_quantity}t available @ ₹{s.price_per_tonne}/t
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="auction-title-input" className="block text-xs font-semibold text-slate-800 mb-1.5">
+                    Auction title <span className="text-red-500 ml-0.5">*</span>
                   </label>
                   <input
-                    type="number"
-                    min="1"
-                    step="1"
+                    id="auction-title-input"
+                    type="text"
                     required
-                    value={startingPrice}
-                    onChange={(e) => setStartingPrice(e.target.value)}
-                    className={`w-full bg-slate-800/90 border rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:ring-2 transition-all ${
-                      priceErr 
-                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' 
-                        : 'border-slate-600 focus:border-indigo-400 focus:ring-indigo-500/20'
-                    }`}
+                    placeholder="e.g. Spot 500t Ultra-Pure CO2 Auction"
+                    value={auctionTitle}
+                    onChange={(e) => setAuctionTitle(e.target.value)}
+                    className="w-full bg-slate-50/80 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-colors font-sans"
                   />
-                  {priceErr && (
-                    <p className="text-rose-400 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 shrink-0" /> {priceErr}
-                    </p>
-                  )}
                 </div>
               </div>
 
-              {/* Min Bid Increment & Duration (STRICT VALIDATIONS) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Min Bid Increment Input */}
-                <div>
-                  <label className="block text-slate-200 font-bold mb-1.5">
-                    Min Bid Increment (₹) <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="50"
-                    step="1"
-                    required
-                    value={minIncrement}
-                    onChange={(e) => setMinIncrement(e.target.value)}
-                    className={`w-full bg-slate-800/90 border rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:ring-2 transition-all ${
-                      minIncErr 
-                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' 
-                        : 'border-slate-600 focus:border-indigo-400 focus:ring-indigo-500/20'
-                    }`}
-                  />
-                  <p className="text-slate-400 text-[10px] mt-1">Minimum allowed: ₹50</p>
-                  {minIncErr && (
-                    <p className="text-rose-400 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 shrink-0" /> {minIncErr}
-                    </p>
-                  )}
+              {/* SECTION B — AUCTION DETAILS */}
+              <div className="space-y-3.5 pt-2 border-t border-slate-200/80">
+                <div className="text-[11px] font-bold font-mono tracking-wider text-slate-400 uppercase pt-1">
+                  Auction details
                 </div>
 
-                {/* Auction Duration Input */}
                 <div>
-                  <label className="block text-slate-200 font-bold mb-1.5">
-                    Auction Duration (Hours) <span className="text-rose-400">*</span>
+                  <label htmlFor="auction-desc-input" className="block text-xs font-semibold text-slate-800 mb-1.5">
+                    Auction notes or specifications <span className="text-slate-400 font-normal">(optional)</span>
                   </label>
-                  <input
-                    type="number"
-                    min="12"
-                    step="1"
-                    required
-                    value={durationHours}
-                    onChange={(e) => setDurationHours(e.target.value)}
-                    className={`w-full bg-slate-800/90 border rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:outline-none focus:ring-2 transition-all ${
-                      durErr 
-                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' 
-                        : 'border-slate-600 focus:border-indigo-400 focus:ring-indigo-500/20'
-                    }`}
+                  <textarea
+                    id="auction-desc-input"
+                    rows={2}
+                    placeholder="Purity specifications, delivery timeframe, off-take conditions..."
+                    value={auctionDesc}
+                    onChange={(e) => setAuctionDesc(e.target.value)}
+                    className="w-full bg-slate-50/80 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-colors resize-none font-sans"
                   />
-                  <p className="text-slate-400 text-[10px] mt-1">Minimum allowed: 12 hours</p>
-                  {durErr && (
-                    <p className="text-rose-400 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 shrink-0" /> {durErr}
-                    </p>
-                  )}
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-3">
-                <Button
+              {/* SECTION C — COMMERCIAL TERMS */}
+              <div className="space-y-3.5 pt-2 border-t border-slate-200/80">
+                <div className="text-[11px] font-bold font-mono tracking-wider text-slate-400 uppercase pt-1">
+                  Commercial terms
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Auction Quantity */}
+                  <div>
+                    <label htmlFor="auction-quantity-input" className="block text-xs font-semibold text-slate-800 mb-1.5">
+                      Auction quantity (tonnes) <span className="text-red-500 ml-0.5">*</span>
+                    </label>
+                    <input
+                      id="auction-quantity-input"
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                      value={auctionQuantity}
+                      onKeyDown={(e) => {
+                        if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E' || e.key === '.') e.preventDefault();
+                      }}
+                      onChange={(e) => setAuctionQuantity(e.target.value)}
+                      className={`w-full bg-slate-50/80 border rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:ring-1 transition-colors font-sans ${
+                        qtyErr 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                          : 'border-slate-300 focus:border-indigo-600 focus:ring-indigo-600'
+                      }`}
+                    />
+                    <p className="text-slate-500 text-[11px] mt-1">Must be greater than 0</p>
+                    {qtyErr && (
+                      <p className="text-red-600 text-[11px] font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0 text-red-500" /> {qtyErr}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Starting Price */}
+                  <div>
+                    <label htmlFor="starting-price-input" className="block text-xs font-semibold text-slate-800 mb-1.5">
+                      Starting price (₹/tonne) <span className="text-red-500 ml-0.5">*</span>
+                    </label>
+                    <input
+                      id="starting-price-input"
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                      value={startingPrice}
+                      onKeyDown={(e) => {
+                        if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E' || e.key === '.') e.preventDefault();
+                      }}
+                      onChange={(e) => setStartingPrice(e.target.value)}
+                      className={`w-full bg-slate-50/80 border rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:ring-1 transition-colors font-sans ${
+                        priceErr 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                          : 'border-slate-300 focus:border-indigo-600 focus:ring-indigo-600'
+                      }`}
+                    />
+                    <p className="text-slate-500 text-[11px] mt-1">Must be greater than 0</p>
+                    {priceErr && (
+                      <p className="text-red-600 text-[11px] font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0 text-red-500" /> {priceErr}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Minimum Bid Increment */}
+                  <div>
+                    <label htmlFor="min-increment-input" className="block text-xs font-semibold text-slate-800 mb-1.5">
+                      Minimum bid increment (₹) <span className="text-red-500 ml-0.5">*</span>
+                    </label>
+                    <input
+                      id="min-increment-input"
+                      type="number"
+                      min="50"
+                      step="1"
+                      required
+                      value={minIncrement}
+                      onKeyDown={(e) => {
+                        if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E' || e.key === '.') e.preventDefault();
+                      }}
+                      onChange={(e) => setMinIncrement(e.target.value)}
+                      className={`w-full bg-slate-50/80 border rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:ring-1 transition-colors font-sans ${
+                        minIncErr 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                          : 'border-slate-300 focus:border-indigo-600 focus:ring-indigo-600'
+                      }`}
+                    />
+                    <p className="text-slate-500 text-[11px] mt-1">Minimum allowed: ₹50</p>
+                    {minIncErr && (
+                      <p className="text-red-600 text-[11px] font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0 text-red-500" /> {minIncErr}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Auction Duration */}
+                  <div>
+                    <label htmlFor="duration-hours-input" className="block text-xs font-semibold text-slate-800 mb-1.5">
+                      Auction duration (hours) <span className="text-red-500 ml-0.5">*</span>
+                    </label>
+                    <input
+                      id="duration-hours-input"
+                      type="number"
+                      min="12"
+                      step="1"
+                      required
+                      value={durationHours}
+                      onKeyDown={(e) => {
+                        if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E' || e.key === '.') e.preventDefault();
+                      }}
+                      onChange={(e) => setDurationHours(e.target.value)}
+                      className={`w-full bg-slate-50/80 border rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:ring-1 transition-colors font-sans ${
+                        durErr 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                          : 'border-slate-300 focus:border-indigo-600 focus:ring-indigo-600'
+                      }`}
+                    />
+                    <p className="text-slate-500 text-[11px] mt-1">Minimum allowed: 12 hours</p>
+                    {durErr && (
+                      <p className="text-red-600 text-[11px] font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0 text-red-500" /> {durErr}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/70 flex items-center justify-end gap-3 shrink-0 -mx-6 -mb-6 mt-4">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setShowCreateModal(false)}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 font-mono text-xs"
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 bg-white hover:bg-slate-100 transition-colors shadow-xs"
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
                   disabled={submitting || isFormInvalid}
-                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white font-mono text-xs font-bold shadow-lg shadow-indigo-950/40 transition-all active:scale-95"
+                  className={`px-5 py-2 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 shadow-md ${
+                    submitting || isFormInvalid
+                      ? "bg-indigo-600/40 text-white/70 border border-indigo-600/30 cursor-not-allowed"
+                      : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-950/20 active:scale-[0.98]"
+                  }`}
                 >
-                  {submitting ? "Publishing..." : "Publish CO₂ Auction →"}
-                </Button>
+                  {submitting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Publishing...</span>
+                    </>
+                  ) : (
+                    <span>Publish auction</span>
+                  )}
+                </button>
               </div>
             </form>
           </div>
