@@ -2,6 +2,40 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireBuyer } from '@/lib/server-auth';
 import { serverDb } from '@/lib/server-db';
 
+export async function GET(req: NextRequest) {
+  const auth = await requireBuyer(req);
+  if (!auth.authorized) {
+    return auth.errorResponse!;
+  }
+
+  try {
+    const requirements = await serverDb.getBuyerRequirements(auth.user.id);
+    return NextResponse.json(
+      {
+        success: true,
+        requirements,
+        data: { requirements },
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+        },
+      }
+    );
+  } catch (err: any) {
+    console.error('[api/requirements] GET error:', err?.message || err);
+    return NextResponse.json(
+      {
+        success: false,
+        message: err?.message || 'Failed to fetch requirements',
+        requirements: [],
+        data: { requirements: [] },
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireBuyer(req);
   if (!auth.authorized) {
@@ -22,8 +56,9 @@ export async function POST(req: NextRequest) {
     const title = String(body.title || '').trim();
     const required_quantity = Number(body.required_quantity);
     const required_purity = Number(body.required_purity);
-    const max_price = Number(body.max_price);
+    const max_price = Number(body.max_price || body.maxPrice || 5000);
     const location = String(body.location || '').trim();
+    const application = String(body.application || 'Industrial Off-take').trim();
 
     if (!title) {
       return NextResponse.json(
@@ -64,7 +99,7 @@ export async function POST(req: NextRequest) {
       buyer_id: auth.user.id,
       buyer_name: auth.user.company || auth.user.name,
       title,
-      application: body.application || 'Industrial Off-take',
+      application: application as any,
       required_quantity,
       required_purity,
       location,
@@ -80,6 +115,7 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         requirement: newReq,
+        data: { requirement: newReq },
         message: 'CO₂ supply requirement created successfully.',
       },
       { status: 201 }

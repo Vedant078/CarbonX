@@ -57,7 +57,7 @@ export default function BuyerDashboardPage() {
         setRequests(requestsData.filter((r: any) => r.buyer_id === user?.id || true));
         setDeals(dealsData.filter((d: FacilitatedDeal) => d.buyer_id === user?.id || true));
         setShipments(shipmentsData);
-        setRequirements(reqsData.filter((r: any) => r.buyer_id === user?.id || true));
+        setRequirements(reqsData.filter((r: any) => r.buyer_id === user?.id));
 
         // Fetch my bids
         const resBids = await fetch("/api/bidding/my-bids");

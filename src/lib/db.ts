@@ -28,7 +28,7 @@ class CarbonXDatabase {
   private users: UserProfile[] = INITIAL_USERS;
   private currentUser: UserProfile | null = null;
   private sources: CarbonSource[] = INITIAL_SOURCES;
-  private requirements: BuyerRequirement[] = INITIAL_REQUIREMENTS;
+  private requirements: BuyerRequirement[] = [];
   private deals: FacilitatedDeal[] = INITIAL_DEALS;
   private shipments: LogisticsShipment[] = INITIAL_SHIPMENTS;
 

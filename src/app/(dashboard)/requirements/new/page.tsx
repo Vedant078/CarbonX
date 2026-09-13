@@ -14,7 +14,7 @@ export default function CreateRequirementPage() {
   const { user } = useAuth();
 
   const [application, setApplication] = useState<ApplicationType>('Synthetic Fuel');
-  const [title, setTitle] = useState('High-Purity CO₂ for Synthetic E-Fuel Plant');
+  const [title, setTitle] = useState('');
   const [requiredQuantity, setRequiredQuantity] = useState<number>(300);
   const [requiredPurity, setRequiredPurity] = useState<number>(99.0);
   const [location, setLocation] = useState('Pune, Maharashtra');

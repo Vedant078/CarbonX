@@ -10,12 +10,12 @@ export default function NewRequirementPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [title, setTitle] = useState("300 tonnes/month Synthetic Fuel Requirement");
-  const [quantity, setQuantity] = useState("300");
-  const [purity, setPurity] = useState("99.5");
-  const [application, setApplication] = useState("Synthetic Fuel");
-  const [location, setLocation] = useState("Pune, Maharashtra");
-  const [budget, setBudget] = useState("4500");
+  const [title, setTitle] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [purity, setPurity] = useState("");
+  const [application, setApplication] = useState("");
+  const [location, setLocation] = useState("");
+  const [budget, setBudget] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -81,6 +81,7 @@ export default function NewRequirementPage() {
             <input
               type="text"
               required
+              placeholder="e.g. Food Grade CO₂ for Beverage Plant"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full bg-muted/20 border border-border/80 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-emerald-500"
@@ -93,6 +94,7 @@ export default function NewRequirementPage() {
               <input
                 type="number"
                 required
+                placeholder="e.g. 125"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className="w-full bg-muted/20 border border-border/80 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-emerald-500"
@@ -103,6 +105,7 @@ export default function NewRequirementPage() {
               <input
                 type="text"
                 required
+                placeholder="e.g. 99.5"
                 value={purity}
                 onChange={(e) => setPurity(e.target.value)}
                 className="w-full bg-muted/20 border border-border/80 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-emerald-500"
@@ -116,6 +119,7 @@ export default function NewRequirementPage() {
               <input
                 type="text"
                 required
+                placeholder="e.g. Beverage"
                 value={application}
                 onChange={(e) => setApplication(e.target.value)}
                 className="w-full bg-muted/20 border border-border/80 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-emerald-500"
@@ -126,6 +130,7 @@ export default function NewRequirementPage() {
               <input
                 type="number"
                 required
+                placeholder="e.g. 4500"
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
                 className="w-full bg-muted/20 border border-border/80 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-emerald-500"
@@ -138,6 +143,7 @@ export default function NewRequirementPage() {
             <input
               type="text"
               required
+              placeholder="e.g. Delhi"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               className="w-full bg-muted/20 border border-border/80 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-emerald-500"

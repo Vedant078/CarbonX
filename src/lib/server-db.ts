@@ -685,10 +685,25 @@ export class CarbonXServerDatabase {
   async getRequirements(): Promise<BuyerRequirement[]> {
     try {
       const rows = await query<BuyerRequirement>(`SELECT * FROM buyer_requirements ORDER BY created_at DESC`);
-      if (rows && rows.length > 0) return rows;
+      if (rows) return rows;
       return db.getRequirements();
     } catch {
       return db.getRequirements();
+    }
+  }
+
+  async getBuyerRequirements(buyerId: string): Promise<BuyerRequirement[]> {
+    try {
+      const rows = await query<BuyerRequirement>(
+        `SELECT * FROM buyer_requirements WHERE buyer_id = $1 ORDER BY created_at DESC`,
+        [buyerId]
+      );
+      if (rows) return rows;
+      return [];
+    } catch (err: any) {
+      console.warn('[server-db] PostgreSQL query failed for getBuyerRequirements:', err?.message || err);
+      const all = await db.getRequirements();
+      return all.filter((r) => r.buyer_id === buyerId);
     }
   }
 
@@ -705,13 +720,16 @@ export class CarbonXServerDatabase {
   async createRequirement(
     reqData: Omit<BuyerRequirement, 'id' | 'created_at'>
   ): Promise<BuyerRequirement> {
-    const id = `req-${Date.now()}`;
+    const id = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const now = new Date().toISOString();
     const newReq: BuyerRequirement = {
       ...reqData,
       id,
       created_at: now,
     };
+
+    // Always maintain memory cache in sync
+    await db.addRequirement(newReq);
 
     try {
       await query(
@@ -736,8 +754,7 @@ export class CarbonXServerDatabase {
         ]
       );
     } catch (err: any) {
-      console.warn('[server-db] PostgreSQL insertion failed for createRequirement (fallback active):', err?.message || err);
-      db.addRequirement(newReq);
+      console.warn('[server-db] PostgreSQL insertion failed for createRequirement:', err?.message || err);
     }
 
     try {
